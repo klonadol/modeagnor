@@ -61,7 +61,7 @@
 | 8. Автономность | Full World Observer, Goal Scheduler consuming proposals, Bot (fifth gnome), Action Registry/Validator/Executor, Navigation, Action Memory outcome events, Motion Engine bridge | 4, 8, 11–13, 13.5, 21.3–21.4, 22, 25 | **Единый вертикальный этап.** Goal Scheduler, Bot, validator/executor, navigation and full observer form one feedback loop and must be integrated/tested together |
 | 9. Голос | TTS adapters/presets, per-NPC voice, audio queue/interruption/cache, client playback, real viseme-driven lip-sync integrated with Face Controller, graceful degradation | 10, 13, 13.5, 15–17, 21.6 | **Совместная интеграция.** TTS generation, audio playback clock and viseme timeline must be implemented and accepted as one end-to-end feature |
 | 10. Полировка и первый релиз | Multiplayer regression, load, long sessions/restart, errors/migrations, API cost/performance settings, install/pack docs, compatibility matrix | 19–25 | **Частично.** Test taxonomy есть; нужно формализовать release matrix, soak tests, packaging/update/rollback и user documentation gate |
-| 11. Мир и финальная версия | World transfer, character packs, addon integrations/Create, expanded voice/interactions, final replacement of temporary assets | 14, 21, 26, 27–28 | **Есть пробел.** Blueprint не содержал отдельного migration workflow авторского мира и полного optional addon API contract; они добавлены в разделы 27–28 |
+| 11. Мир и финальная версия | World transfer, character packs, addon integrations/Create, expanded voice/interactions, final replacement of temporary assets | 14, 21, 26–28 | **Проектирование добавлено.** Migration workflow и addon API contract описаны; addon зависит от API freeze Phase 10, реализация остаётся задачей Phase 11 |
 
 ### 0.5.1 Обратная сверка ARCHITECTURE и ADR
 
@@ -90,8 +90,8 @@
 | ADR-0001 Platform | 1–3, 15, 22, 25; Phase 0–1 | Требования отражены; Fabric 1.21.1 build/runtime proof остаётся Phase 0 gate |
 | ADR-0002 Host-authoritative runtime | 1, 3, 15, 18, 20–22 | Требование отражено сквозными инвариантами; требуется multiplayer verification |
 | ADR-0003 Content Packs | 14–15, 20; Phase 0/4 | Ограничения и package lifecycle описаны; path/sync/hot reload остаются техническими проверками |
-| ADR-0004 Memory pipeline | 6–9, 10, 20, 22; Phase 5–7 | Шесть stores и гномики сопоставлены; schema/index/retention/day-boundary остаются Open до фаз внедрения |
-| ADR-0005 Optional integrations | 27; Phase 1 design, Phase 11 addon | Ранее отсутствовавший отдельный контракт добавлен; реальная совместимость Create не заявляется |
+| ADR-0004 Memory pipeline | 6–10, 20, 22; Phase 5–8 | Шесть stores, Event Feed producer, когнитивный цикл Phase 7 и Bot/Action expansion Phase 8 сопоставлены; schema/index/retention/day-boundary остаются Open до фаз внедрения |
+| ADR-0005 Optional integrations | 27; internal modularity Phase 1, Action/Goal/Event API design Phase 8, freeze Phase 10, addon Phase 11 | Публичный API не фиксируется до стабилизации базовых contracts; реальная совместимость Create не заявляется |
 | ADR-0006 Character visual quality | 13–14, 23, 25; Phase 0/3/10 | Acceptance profile и capability fallbacks сохранены; конкретный renderer и benchmark не утверждены без spike |
 | ADR-0007 Procedural Motion Engine | 12–13, 21.4, 23, 25; Phase 0/3/8 | Semantic tasks/pipeline отражены; solver strategy, timestep, collisions и snapshot rate остаются Open до измерений |
 | ADR-0008 External character assets | 14; Phase 0/3/4/11 | Asset-first, Blender adaptation, capability report, provenance и restricted-asset release gate отражены |
