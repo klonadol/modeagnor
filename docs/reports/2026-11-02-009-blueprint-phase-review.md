@@ -4,7 +4,7 @@
 - **Статус:** Partial (design review completed for current documentation baseline)
 - **Ветка:** main
 - **HEAD до работы:** aa8104d4a7c73153af76e8ff4b0f734410309963
-- **HEAD после основных изменений Blueprint/ROADMAP/INDEX:** c395beb249848e9323c5bc6631c84aca091dd2ff
+- **HEAD после основных изменений Blueprint/ROADMAP/INDEX:** f6cf01041d243df4846eeb0e8d448844d33cefe0
 - **Связанные ADR:** ADR-0001…ADR-0008; решения не переутверждались
 - **Связанные этапы:** Фазы 0–11
 
