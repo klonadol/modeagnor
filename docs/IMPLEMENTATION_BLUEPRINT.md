@@ -32,6 +32,275 @@
 
 Статусы: Agreed, Designed, Open, Validated, Implemented, Verified. Последние два применяются только после реального изменения кода и проверок. Числовые лимиты, тайм-ауты, очереди, tick budgets и retention задаются конфигурацией и измеряются; до профилирования это параметры, не выдуманные константы.
 
+
+
+### 0.4 Порядок чтения и проектирования
+
+Основной маршрут теперь совпадает с фазами ROADMAP 0–11. Проектирование каждой следующей фазы начинается после проверки выходных артефактов предыдущей, но общие контракты (идентификаторы, scope, server authority, версии DTO, ошибки, observability) определяются заранее и не дублируются.
+
+В документе есть два слоя:
+- **Часть A — фазовый маршрут ниже:** в каком порядке проектировать и реализовывать функции; какие решения нужны до начала фазы; какой результат проектирования должен существовать.
+- **Часть B — технический каталог, разделы 1–29:** подробные алгоритмы и общие контракты компонентов. Ссылки в каждой фазе ведут к этим разделам.
+
+Правило: нельзя начинать реализацию фазы только потому, что для неё есть строка в ROADMAP. Сначала закрывается её design gate: компоненты, contracts, scopes, state transitions, thread ownership, error/recovery behavior и тестовые сценарии описаны. Неизвестные технические значения остаются Open до прототипа/измерения.
+
+### 0.5 Сверка ROADMAP с текущим Blueprint
+
+Состояние отражает документальную сверку, а не наличие работающего кода.
+
+| Фаза ROADMAP | Основные требования ROADMAP | Разделы Blueprint | Результат сверки |
+|---|---|---|---|
+| 0. Технические проверки | Fabric/client/server, каталоги, базовый packet, renderer, IK, gait, skinning/morph/blending/physics, host pose sync, лицензии и модельные тесты | 1–3, 10, 13–15, 20, 22–25 | **Частично.** Компоненты и критерии есть; нужен единый протокол spike, таблица измерений и решение по storage/catalog path |
+| 1. Каркас | Lifecycle, common/server/client, config/catalogs, protocol/versioning, permissions, settings UI, safe logging | 1–3, 15–16, 18–20, 24 | **Частично.** Границы и network security есть; нужно конкретизировать config/data roots, config validation/apply, minimal UI command lifecycle и logging policy |
+| 2. Character Runtime | NPC UUID/definition, create/delete/load, runtime state, relationships per player UUID, world/NPC/player saves, two-player isolation | 3–4, 7, 18, 21, 25 | **Частично.** Основные объекты есть; нужно определить lifecycle state machine, ownership, deletion semantics и согласование world save/load |
+| 3. 3D и visual control | Import готовой модели, retarget/repair, animation state machine, crossfade/masks/additive, Motion Engine, IK, gait, facial control, secondary physics, pose sync | 13–14, 21.4, 23, 25 | **Частично.** Pipeline есть; требуется подробная спецификация animation graph/layer precedence, конкретных solver tests, gait measurements и связи viseme contract с Фазой 9 |
+| 4. Content Packs | Manifest, scan/enable/disable, assets/definitions/prompts, provenance/license, capability report/fallback, priority overrides, checksum/version, safe client policy | 14–15, 19–20 | **Частично.** Validation/sync есть; не были выделены package activation lifecycle, override precedence, enable/disable/rollback и hot-reload boundary |
+| 5. Provider Gateway/dialogue | LLM adapters, independent presets, local/cloud endpoints, timeouts/retry/streaming, last N messages, system prompts/roles, host secrets, dialogue UI | 5–6, 10, 15–16, 24 | **Частично.** API flow есть; нужно явно задать staged durable History: базовые последние N сообщений появляются в Фазе 5, затем расширяются в Фазе 6 без второго конкурирующего хранилища |
+| 6. Шесть хранилищ | Все 6 stores, SQLite/JSON choice, migrations/backups, world/NPC/player isolation, indexes/retention | 7, 19–20, 22, 25 | **Частично.** Scope/transactions/migrations описаны; надо добавить backup/restore/retention lifecycle и переход от Phase 2/5 data без потери данных |
+| 7. Гномики и scheduler | Memorizer, Embedding, Judge, Thinker, Summarizer, queues/retries/metrics, manual run/debug UI | 8–10, 16, 19–20, 25 | **Частично.** Контракты пяти гномиков есть; нужно определить, что Bot в Фазе 7 получает только контракт/скелет, а полноценные world actions появляются в Фазе 8; добавить ручное управление/диагностику |
+| 8. Автономность | Observer, Goal Scheduler, navigation/follow, whitelist interactions, reactions, simultaneous motion, interruption and safety | 4, 11–13, 21.3–21.4, 25 | **В основном покрыто.** До реализации закрыть action state machine, nav/stuck policy, idempotency side effects и motion conflict acceptance scenarios |
+| 9. Голос | TTS adapters/presets, per-NPC voice, audio queue/interruption/cache, client playback, mouth sync, graceful degradation | 10, 13, 15–17, 21.6 | **Частично.** Основной TTS path есть; отсутствовали детальные queue/cache/interruption/playback sync contracts |
+| 10. Полировка и первый релиз | Multiplayer regression, load, long sessions/restart, errors/migrations, API cost/performance settings, install/pack docs, compatibility matrix | 19–25 | **Частично.** Test taxonomy есть; нужно формализовать release matrix, soak tests, packaging/update/rollback и user documentation gate |
+| 11. Мир и финальная версия | World transfer, character packs, addon integrations/Create, expanded voice/interactions, final replacement of temporary assets | 14, 21, 26, 27–28 | **Есть пробел.** Blueprint не содержал отдельного migration workflow авторского мира и полного optional addon API contract; они добавлены в разделы 27–28 |
+
+### 0.6 Порядок проектирования по фазам 0–11
+
+Для каждой фазы ниже перечислены не только работы ROADMAP, но и то, что должно быть спроектировано **до реализации**. Это основной последовательный план проектирования.
+
+#### Фаза 0 — базовые технические доказательства
+
+**Сначала проектируем:**
+1. Минимальный Fabric 1.21.1 / Java 21 bootstrap, разделение dedicated/integrated server и client-only classes.
+2. Протокол простого server→client и client→server state request: version, identity, validation, sequence и error response.
+3. Data root resolver: client game directory, dedicated server directory, permissions, нестандартный game directory и отсутствие доступа к каталогу.
+4. Renderer spike: один готовый rigged anime asset и один static/partial-rig asset; перечень обязательных runtime controls — skinning, bone pose read/write, morph weights, animation blending, procedural overrides, secondary chains.
+5. Motion spike: semantic task contract, look-at/reach/turn, Two-Bone IK, сравнение FABRIK/CCD где применимо, whole-body priority approach, gait и spring-chain.
+6. Host-authoritative pose test: один server simulation, два клиента, sequence/interpolation, latency/loss behavior.
+7. Storage spike: сравнение SQLite/JSON для server save lifecycle, transactions, backup/migration, concurrent reads/writes и дальнейших шести stores. До выбора нельзя фиксировать окончательную схему.
+8. Asset/legal record: проверка лицензии и provenance тестовых файлов; при отсутствии пригодного файла — локальный temporary restricted asset по ADR-0008 и запись в register.
+9. Compatibility spike: Fabric API version, candidate renderer dependencies, Sodium/Iris interaction и лицензии библиотек.
+
+**Артефакты выхода проектирования:** spike matrix с версией зависимостей, тестовым asset/capability report, renderer/solver measurements, network proof, data-root/storage decision и списком ограничений. Недельный спринт из ROADMAP — цель демонстратора, не критерий снижения полноты.
+
+**Design gate:** не выбирать renderer, solver, storage engine или сетевую частоту без воспроизводимого теста. Подтверждённый результат фиксируется в ADR/отчёте.
+
+#### Фаза 1 — модовый каркас и security boundary
+
+**Проектируем:**
+1. Bootstrap/lifecycle: common, server, client entrypoints; startup, world load/unload, server stop, dedicated-server classloading.
+2. Configuration system: global/server/world/NPC/client scopes, defaults, schema versions, validation, atomic apply, reload policy.
+3. Data root/catalog layout: packs, presets, cache, logs и server/world data; отделение общих ресурсов от данных конкретного мира.
+4. Network protocol: DTO versioning, request IDs, bounded payloads, sender identity, acknowledgements, rejection reason codes, rate limits.
+5. Permission service: начальная роль owner/admin/player, default deny, scope checks и будущая возможность расширения без обхода server validation.
+6. Settings UI: pending → server response → persisted result; ошибки и permission denial отображаются по серверному ответу.
+7. Safe logging/diagnostics: correlation IDs, redaction, уровни логирования, opt-in для чувствительной диагностики.
+8. Threading contract: server thread только для bounded state/world changes; background executors и возврат результата через server scheduler.
+
+**Артефакты:** lifecycle diagram, config schema, каталог путей, packet contract, минимальная permission matrix, UI request state machine, logging/redaction rules.
+
+**Design gate:** dedicated server не загружает client-only classes; ни один запрос UI не меняет state до серверной проверки; конфигурация переживает перезапуск и не применяется частично.
+
+#### Фаза 2 — Character Runtime и первая NPC
+
+**Проектируем:**
+1. NPC identity: UUID, Character Definition ID/version, world association, ownership/creator и правила уникальности.
+2. Runtime state machine: Constructing → Active → Suspended/Unloaded → Removing → Removed/Failed; допустимые переходы и восстановление.
+3. Creation flow: permission → definition validation → resource checks → factory → initial persistence → spawn snapshot → idempotent acknowledgement.
+4. Delete flow: удаление entity, сохранение/удаление памяти, подтверждение пользователя, каскадные зависимости и восстановление после сбоя.
+5. Relationship State: ключ NPC UUID + Player UUID; ник только display; lifecycle игрока и правила удаления/retention.
+6. World/NPC/player persistence: границы save data, atomic writes, load ordering, world isolation и backup strategy.
+7. Concurrency: единственный владелец runtime state конкретного NPC; stale callback после unload не применяет старые изменения.
+
+**Артефакты:** NPC lifecycle/state diagram, Character Definition schema, ownership rules, relationship schema, save/load/delete transaction map и два-player isolation scenarios.
+
+**Design gate:** NPC и состояние восстанавливаются; профили двух игроков не смешиваются; удаление не приводит к случайному удалению общих данных; повтор команды создания/удаления не выполняет side effect дважды.
+
+#### Фаза 3 — 3D, визуальное управление и Motion Engine
+
+**Проектируем:**
+1. Runtime asset contract и rig descriptor: skeleton hierarchy, semantic bone map, skin weights, clips, morphs, visemes, spring chains, proxies, sockets и fallback.
+2. Animation graph: base state machine, transitions, crossfade, body-part masks, additive layers и правила interrupt/blend.
+3. Whole Body Controller: ownership body channels, priority arbitration, preemption, constraints и безопасное освобождение каналов.
+4. Solver interface: Two-Bone IK, foot IK, gaze distribution, pole vectors, joint limits; FABRIK/CCD только там, где подтверждено тестом.
+5. Procedural gait: phase, stride, speed, pelvis/weight transfer, arm counter-swing, starts/stops/turns и transition to authored clips.
+6. Facial pipeline: expression channels, eye/eyelid/brow/jaw, morph control и независимость от выбранного клипа.
+7. Viseme contract: определить входную временную шкалу артикуляции уже в Фазе 3, но источник TTS/audio timing подключить в Фазе 9.
+8. Secondary physics: solver step, substeps, chains, constraints, collision proxies, clamps, pause/unload/reset и performance budgets.
+9. Pose replication: authoritative root/gameplay state, compact presentation payload, sequence, send rate, interpolation, missing snapshots и version mismatch.
+10. Performance/quality test suite по ADR-0006/0007 на одной и нескольких NPC.
+
+**Артефакты:** rig capability schema, animation/layer graph, solver contracts, motion-task catalogue, facial/viseme interface, pose DTO и renderer benchmark.
+
+**Design gate:** модель не просто отображается — она проходит полный профиль idle, walk/run, start/stop, turn, look-at, reach, gesture, expressions, layer blending, secondary physics и two-client sync. Неизвестные capabilities дают fallback, а не crash.
+
+#### Фаза 4 — Content Packs
+
+**Проектируем:**
+1. Каталог пакетов, manifest schema, package ID/version, supported Agnor API version и dependencies.
+2. Scan → validate → stage → resolve → activate; отдельные enable/disable/remove и rollback transitions.
+3. Priority/override resolution: порядок base pack, dependency pack, user pack и explicit override; детерминированное разрешение конфликтов ID/resources.
+4. Package data model: character definitions, prompt templates, model/texture/animation resources, facial profiles и declarative behavior settings.
+5. Разделение pack data и host-only settings: credentials, endpoint secrets, private memory и world save данные запрещены.
+6. Security: path traversal, archive expansion limits, file count/size/type/signature, checksum, manifest schema, dependency cycles.
+7. Hot reload boundary: какие типы ресурсов можно перезагрузить без restart; какие требуют NPC quiescence/recreation; как invalid update откатывается.
+8. Client availability/sync policy: allowed redistribution + admin opt-in, local-only assets, trusted source/manual install/refusal при mismatch.
+9. Provenance/license metadata и capability fallback на каждом asset.
+
+**Артефакты:** manifest/schema, precedence rules, package state machine, validation threat cases, hot-reload matrix, multiplayer transfer policy.
+
+**Design gate:** новый тестовый персонаж подключается без изменения JAR; corrupt/incompatible pack не активируется; previous valid pack остаётся; restricted asset не передаётся и не публикуется.
+
+#### Фаза 5 — Provider Gateway и живой диалог
+
+**Проектируем:**
+1. Provider-neutral chat request/response и adapter lifecycle; capability negotiation, local/cloud endpoint, TLS, auth, errors.
+2. Preset resolution: main dialogue profile независимо от gnome/embedding/TTS; snapshot version конфигурации на каждый request.
+3. Secret resolver и host-only storage; masked UI, rotation, redaction, export/import без credentials.
+4. Dialogue lifecycle: request validation, idempotency, inbound persistence, context assembly, provider call, structured response validation, response commit, delivery/reconciliation.
+5. System prompts, message roles и разделение trusted policy/untrusted conversation/lorebook data.
+6. Context limit: последние N сообщений, default 10, настройки размера и deterministic order.
+7. Streaming state: partial chunks не durable; финальная фиксация; interrupted response; безопасное восстановление доставки.
+8. Retry semantics: различать transport retry и повтор inference; uncertain provider acceptance требует reconciliation.
+9. Dialogue UI request state machine и поведение при server/provider timeout/disconnect.
+
+**Важное staging решение:** Фаза 5 реализует durable minimal Conversation History через общий Storage API — те же message IDs, scope и последовательность, которые будут использоваться далее. Фаза 6 расширяет этот же контракт до полной системы памяти. Не создавать временное второе хранилище истории и не переписывать диалог при добавлении шести stores.
+
+**Артефакты:** provider adapter contracts, capability matrix, preset schema, secret lifecycle, dialogue sequence/state machine, conversation message schema и failure cases.
+
+**Design gate:** полный путь UI → server → provider → persisted result → addressed client; timeout не блокирует server thread; приватный контекст не виден другому игроку.
+
+#### Фаза 6 — шесть хранилищ и persistence
+
+**Проектируем:**
+1. Финальную storage schema и миграционный путь от Phase 2 runtime saves и Phase 5 Conversation History.
+2. Шесть store contracts, scope matrix, keys, indexes, pagination, retention и backup/restore.
+3. Provenance/epistemic types: observed, reported, inferred, desired, planned; conflict и supersession lineage.
+4. Transaction/outbox semantics для нескольких записей и watermark updates.
+5. Backup schedule, consistency snapshot, restore to separate test world, corruption detection и recovery mode.
+6. Retention: срок/условие для History, Action Memory, Thoughts, pending candidates, Diary и Summary; ничего не удалять без явной policy.
+7. Embedding index lifecycle: provider/model/version, rebuild/reindex, stale vector handling и fallback. Сам adapter подключается в Phase 7, но storage interface планируется заранее.
+8. Day/period abstraction для Daily Summary как open decision, который должен быть закрыт до реализации Summary в Phase 7.
+
+**Артефакты:** ER/data model, schema versioning, migration scripts plan, backup/restore procedure, scope matrix, retention matrix и crash-recovery tests.
+
+**Design gate:** все данные изолированы по world/NPC/player UUID; миграция и восстановление проверены; перезапуск не теряет сообщения/мысли/дневник; повреждение не приводит к silent reset.
+
+#### Фаза 7 — гномики и Gnome Scheduler
+
+**Проектируем и реализуем по зависимостям:**
+1. Scheduler envelope, queue partitions, per-gnome/per-provider concurrency, priorities, fairness, dedupe, retry, cancellation, checkpoint и metrics.
+2. Memorizer: только History + Thoughts; candidates с provenance и epistemic type; watermark и передача Judge.
+3. Embedding adapter/profile: версии моделей/индекса, similarity retrieval, rebuild, fallback.
+4. Judge: scoped candidate retrieval, duplicate/conflict logic, ACCEPT/MERGE/SPLIT/REJECT/DEFER и transactional lineage.
+5. Thinker: target 30 seconds + event triggers, context snapshot, stale-result rejection, structured Thoughts и goal proposals.
+6. Summarizer: каждые 10 сообщений; previous summary + new range; watermark, idempotency, day boundary и no data loss.
+7. Независимые provider presets для каждого gnome; ошибка одного не блокирует другие.
+8. Manual run/debug UI: permission check, dry-run/preview, task status, cancel/retry policy, sanitized diagnostics; ручной запуск не обходит validators.
+9. **Bot в этой фазе:** фиксируется service contract, typed plan schema и связь с Goal Scheduler/Motion Engine; полный action execution не реализуется раньше Фазы 8, чтобы не смешивать memory pipeline с world mutation.
+
+**Артефакты:** scheduler state machine, gnome input/output schemas, provider assignment matrix, task retry matrix, manual diagnostics UI flow и end-to-end memory tests.
+
+**Design gate:** Memorizer не обходит Judge; повтор не создаёт duplicates; Thinker не вызывает actions напрямую; stale results отбрасываются; один provider failure изолирован.
+
+#### Фаза 8 — автономное поведение и действия
+
+**Проектируем:**
+1. World Observer event catalogue: event type, actor/target, relevance, visibility, durability, dedupe/coalesce.
+2. Goal Scheduler policy: priority, dependencies, preemption cost, expiry, success/failure and anti-loop rules.
+3. Bot action planner и whitelist registry; schema, permission, range, cooldown, world preconditions и capability checks.
+4. Action Executor lifecycle, idempotency class, uncertain outcome reconciliation и audit record.
+5. Navigation: path, follow target, repath, stuck detection, obstacles, unloaded chunks, stop/cancel and arrival predicate.
+6. Motion task bridge: walk_to, look_at, reach, wave etc.; coordination and interruption across simultaneous tasks.
+7. Event feedback: действие NPC → observed outcome → Action Memory/Thinker; предотвращение бесконечного self-trigger loop.
+8. Multiplayer visibility and permission policy for autonomous actions.
+
+**Артефакты:** event catalogue, goal/action schemas, whitelist matrix, state transitions, navigation failure taxonomy и combined-motion acceptance suite.
+
+**Design gate:** NPC самостоятельно выполняет разрешённые задачи; препятствие/отмена/изменение цели корректно обрабатывается; ни одна модель не исполняет произвольную команду; фактический outcome подтверждён миром.
+
+#### Фаза 9 — голос
+
+**Проектируем:**
+1. TTS adapter contract, voice profile per NPC, locale/format/capability checks и отдельные provider presets.
+2. Audio task lifecycle: queued → generating → validated → ready → playing → interrupted/completed/failed.
+3. Очередь аудио, приоритет, interrupt/replace policy, cancellation и синхронизация речи нескольких NPC.
+4. Cache key, cache scope, invalidation при смене текста/голоса/провайдера, size limits и storage/retention.
+5. Audio transport/recipient policy: адресный или tracking broadcast, permissions, bandwidth, packet loss и fallback.
+6. Playback metadata: start timestamp, duration, voice/model ID и viseme timeline.
+7. Face/Motion bridge: использование viseme timeline, fallback без timing, отсутствие конфликта с expression/lip-sync layers.
+8. Failure isolation: TTS недоступен — текст уже сохранён и виден; очередь не блокирует chat.
+
+**Артефакты:** audio state machine, cache/retention policy, network DTO, playback sync tests и viseme mapping.
+
+**Design gate:** подключённые игроки слышат согласованное воспроизведение в выбранной policy; interrupted/overlapping audio корректно отменяется; без TTS диалог полностью работает.
+
+#### Фаза 10 — полировка и первый самостоятельный релиз
+
+**Проектируем:**
+1. Release/compatibility matrix: Minecraft/Fabric/API, renderer, Sodium/Iris, server OS/runtime, supported provider capabilities и Content Pack versions.
+2. Multiplayer regression suite: разные UUID, permissions, concurrent dialogues, memory isolation, NPC tracking и disconnect/reconnect.
+3. Soak/long-session tests: queue saturation, provider rate limits, DB growth, cache cleanup, memory retention, world save/restart и migration.
+4. Load profiles: NPC/player counts, server tick budget, renderer GPU/CPU, network bandwidth, API token/cost ceilings.
+5. Recovery drills: backup restore, corrupted pack rollback, provider outage, server crash, interrupted tasks.
+6. User-facing install/update/uninstall instructions, pack authoring guide, configuration/security docs и known limitations.
+7. Public distribution audit: JAR contents, dependencies/licenses, Content Packs, secrets scan, no restricted temporary asset, reproducible release evidence.
+8. CI evidence policy: checks/logs/summary by default; artifacts only for necessary human inspection, minimal content and short retention.
+
+**Артефакты:** release checklist, compatibility matrix, regression/soak reports, install docs, known limitations, distribution audit and rollback plan.
+
+**Design gate:** standalone companion работает без мира Агнор и Create; все critical user journeys проходят; долговременные сессии и восстановление проверены; публичный пакет не содержит restricted files/secrets.
+
+#### Фаза 11 — перенос авторского мира и финальная полная версия
+
+**Проектируем:**
+1. World migration inventory: source world structures, character definitions, IDs, locations/dimensions, relationships, lore, assets, links and dependencies.
+2. Mapping plan: как source entities/data становятся Minecraft world resources/NPC definitions/Content Pack entries; unresolved/lossy mappings помечаются, не угадываются.
+3. Migration tool/process: read-only source inspection → manifest → dry run → staged conversion → validation → explicit approval → target import.
+4. Referential integrity: stable IDs, duplicate resolution, missing assets, orphan records, coordinates/dimension mapping, rollback and repeatability.
+5. World acceptance suite: ключевые локации, персонажи, отношения, история/лore и playable routes; источник никогда не перезаписывается.
+6. Optional addon API: versioned contracts и compatibility policy для регистрации новых interaction/action/event/goal types; отдельный addon не модифицирует Core и отсутствует без последствий.
+7. Create adapter: отдельная сборка; dependency/version detection; mapping Create blocks/events/actions; precondition/permission validation; отсутствие Create не меняет поведение Core. Совместимость не утверждать до теста конкретной Fabric build.
+8. Expanded voice/interactions и final asset rights audit.
+9. Только перед финальным full release после переноса мира заменить/удалить весь temporary restricted asset inventory; Phase 10 standalone companion release этим не блокируется.
+
+**Артефакты:** migration inventory/mapping, dry-run and rollback report, addon API specification, Create compatibility matrix, final asset replacement audit.
+
+**Design gate:** мир перенесён и проверен на копии; исходник сохранён; addon optional; все restricted temporary models заменены/удалены из final full distribution.
+
+### 0.7 Ключевые зависимости между фазами
+
+- Phase 0 выбирает доказанные technical constraints; Phase 1 превращает минимальный spike в поддерживаемую структуру мода.
+- Phase 1 даёт lifecycle, config, network, permissions и Storage/Executor boundaries для всех последующих функций.
+- Phase 2 создаёт единый Character Runtime и базовую persistence-модель.
+- Phase 3 использует локальный test asset; formal Content Pack lifecycle появляется в Phase 4. Не делать Phase 3 зависимой от ещё не существующего pack manager.
+- Phase 4 поставляет character definitions/prompts/assets; host secrets и private memory остаются вне пакетов.
+- Phase 5 создаёт первую durable Conversation History через общий storage contract; Phase 6 расширяет её, а не заменяет.
+- Phase 6 завершает storage contracts до запуска фоновых gnomes в Phase 7.
+- Phase 7 фиксирует Bot API/plan schema; Phase 8 включает реальное выполнение действий.
+- Phase 3 формирует facial/viseme interface; Phase 9 подключает к нему TTS timing.
+- Phase 10 стабилизирует standalone companion; Phase 11 переносит authored world и добавляет optional integrations.
+
+### 0.8 Реестр пробелов, выявленных сверкой
+
+| ID | Выявленный пробел/неоднозначность | Исправление в Blueprint | Фаза закрытия |
+|---|---|---|---|
+| GAP-01 | Phase 0 spikes не имели общего измерительного протокола | Phase 0 artifacts и design gate | 0 |
+| GAP-02 | Data root/config lifecycle был описан слишком общо | Config/catalogue design, path validation and apply lifecycle | 0–1 |
+| GAP-03 | NPC create/delete/load/save state machine была неполной | Полный lifecycle и ownership design | 2 |
+| GAP-04 | Animation graph, solver tests и viseme boundary не были разложены по этапам | Animation/layer contract и viseme handoff | 3, 9 |
+| GAP-05 | Pack enable/disable, precedence, hot reload и rollback не выделялись | Package activation state machine и override policy | 4 |
+| GAP-06 | Phase 5 history / Phase 6 full memory создавали риск двух хранилищ | Единственная эволюционирующая Conversation History через общий Storage API | 5–6 |
+| GAP-07 | Bot смешивался с gnome pipeline до готовности Action Executor | Bot contract в Phase 7, полноценное исполнение в Phase 8 | 7–8 |
+| GAP-08 | Manual gnome run/debug отсутствовал в функциональном контракте | Permissioned dry-run, status, cancel, sanitized diagnostics | 7 |
+| GAP-09 | Backup/restore, retention и recovery были недостаточно конкретны | Storage backup/restore/retention design gate | 6, 10 |
+| GAP-10 | Audio queue/cache/interruption/playback sync были описаны только общим TTS path | Audio lifecycle и cache/network contracts | 9 |
+| GAP-11 | Long-session/release compatibility and distribution audit были слишком общими | Release matrix, soak tests, rollback and public audit | 10 |
+| GAP-12 | Optional addon API не имел отдельного контракта в Blueprint | Новый раздел 27: extension/addon API | 1/8 design; 11 implementation |
+| GAP-13 | Перенос авторского мира не имел безопасного migration workflow | Новый раздел 28: inventory, mapping, dry-run, validation, rollback | 11 |
+| GAP-14 | Не были явным образом связаны facial rig Фазы 3 и TTS Фазы 9 | Общий viseme timeline contract и staged provider integration | 3/9 |
+
+Этот реестр не означает, что соответствующие функции реализованы. Исправление состоит в том, что проектирование теперь привязано к нужной фазе и имеет проверяемый выход.
+
 ## 1. Системная модель и инварианты
 
 ### 1.1 Runtime стороны
@@ -589,7 +858,85 @@ Compile/CI alone не даёт Verified. Multiplayer features требуют ded
 
 Каждый вопрос закрывается prototype, measurement, compatibility test или явным accepted trade-off.
 
-## 27. Дальнейшая детализация и Definition of Blueprint Complete
+## 27. Optional Integration / Addon API
+
+### 27.1 Граница Core и addon
+
+Agnor Core публикует versioned extension API, а addon является отдельным Fabric-модом с собственной зависимостью и версионной совместимостью. Core не импортирует классы Create или иных необязательных модов напрямую. Отсутствующий, отключённый или несовместимый addon не влияет на запуск и работу базового companion-мода.
+
+### 27.2 Контракт расширения
+
+API должен позволять addon:
+- объявить собственный addon ID, версию и диапазон поддерживаемых Agnor API versions;
+- зарегистрировать типизированные world events, target descriptors, action definitions и goal/interaction handlers;
+- указать необходимые capabilities/dependencies;
+- предоставить validator/precondition checks, execution adapter, completion/failure reason mapping и audit metadata;
+- подписываться только на явно разрешённые события через lifecycle-managed subscriptions;
+- безопасно unregister/dispose при остановке мира/сервера.
+
+Addon не может подменять базовый Character Runtime, обходить Permission Service, напрямую читать private memory/credentials или исполнять неограниченный код из Content Pack. Любое действие addon проходит тот же серверный validation/execution lifecycle, что и встроенное действие.
+
+### 27.3 Регистрация и отказ
+
+При startup Core обнаруживает зарегистрированные addons, проверяет API version, dependency presence, duplicate IDs и declared capabilities. Несовместимый addon переводится в disabled state с reason code; Core продолжает работу. Регистрация должна быть атомарной: частично зарегистрированный набор actions/events не остаётся активным. События addon получают source/addon ID и provenance.
+
+### 27.4 Создание и выпуск addon
+
+До первого addon должны быть опубликованы:
+- стабильные интерфейсы и versioning policy;
+- lifecycle/threading contract;
+- permissions/security contract;
+- compatibility test harness;
+- migration/deprecation policy.
+
+Create adapter реализуется отдельно и проверяется только против конкретной доступной Fabric/Minecraft/Create matrix. Наличие API не доказывает совместимость Create. Это соответствует ADR-0005; до Phase 11 addon не является зависимостью standalone release.
+
+## 28. Перенос авторского мира
+
+### 28.1 Принцип
+
+Перенос мира — отдельная data/content migration, а не импорт файлов в активный runtime. Исходный мир никогда не перезаписывается. Любая операция выполняется на копии и имеет inventory, mapping, dry-run, validation, approval и rollback.
+
+### 28.2 Inventory и mapping
+
+Перед преобразованием формируется manifest исходных сущностей и связей:
+- персонажи, stable IDs, имена и варианты;
+- локации, координаты, dimensions/regions и пространственные связи;
+- Character Definitions, personality/lore/prompt references;
+- отношения, события, timeline и допустимые memory records;
+- модели, текстуры, анимации, звуки и provenance/license;
+- связи персонажей с локациями/объектами/сюжетными элементами;
+- внешние зависимости и элементы, которые невозможно перенести напрямую.
+
+Каждый исходный тип получает одно из решений: direct mapping, transform, manual review, unsupported/omit. Потеря информации и неоднозначные соответствия не скрываются; они попадают в migration report.
+
+### 28.3 Conversion workflow
+
+1. Создать read-only source snapshot и checksum.
+2. Построить inventory/manifest без изменения source.
+3. Сопоставить source IDs с Agnor/Minecraft IDs; создать deterministic mapping file.
+4. Выполнить dry-run и показать missing assets, collisions, unsupported fields, dimension/coordinate issues и потенциальные потери.
+5. Подготовить staging world/content pack в отдельном каталоге.
+6. Преобразовать data/definitions/assets с сохранением source provenance и references.
+7. Проверить referential integrity, assets/capabilities, world load, NPC spawn, relationships и ключевые сценарии.
+8. Получить явное approval на promotion staging result в target world.
+9. Сохранить migration report, source/target version, mapping, checksums и rollback instructions.
+
+Повторный запуск с тем же source snapshot и mapping должен быть детерминированным либо явно остановиться на конфликте. Частичный импорт не считается успешным завершением.
+
+### 28.4 Проверки и release gate
+
+Тестировать на отдельной копии мира:
+- ключевые локации и dimension mapping;
+- персонажей, уникальность ID и связи;
+- характеры/lore/prompt references;
+- assets, rig capability и замену временных моделей;
+- missing dependency и duplicate collision;
+- повторный запуск, rollback и восстановление после сбоя.
+
+Личные данные, секреты и приватные дампы не включаются в публичные migration artifacts. Final asset rights audit проводится после переноса и до финальной полной публикации. Политика ADR-0008 сохраняется: Phase 10 не блокируется локальными временными моделями; cleanup обязателен перед финальным full release после Phase 11.
+
+## 29. Дальнейшая детализация и Definition of Blueprint Complete
 
 Blueprint — единый верхний документ. Отдельная спецификация создаётся только когда алгоритм/контракт слишком велик, с явной ссылкой из этого документа. Стабильные внешние контракты выносятся в versioned schemas. Каждая функция связывается с roadmap phase, ADR, тестами и отчётом. Изменение поведения обновляет blueprint и связанные документы в одной логической задаче.
 
