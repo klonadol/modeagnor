@@ -63,6 +63,7 @@
 - Permissions и проверка отправителя.
 - Минимальный экран настроек.
 - Базовое логирование без секретов.
+- Единый Storage Facade foundation: schema versioning, scope enforcement, transactions и migrations; все игровые и AI-хранилища следующих фаз используют этот интерфейс и выбранный в Фазе 0 backend.
 
 Критерий выхода: мод запускается в одиночной игре и на dedicated server; клиент подключается; сервер валидирует запросы; сохранение конфигурации переживает перезапуск.
 
@@ -72,7 +73,8 @@
 - Создание, удаление и загрузка NPC.
 - Runtime State и жизненный цикл.
 - Отдельные профили отношений по UUID игроков.
-- Сохранение мира/NPC/игрока.
+- Сохранение мира/NPC/игрока через общий Storage Facade.
+- Базовая Character Definition schema и Registry со встроенным/dev definition source для первой NPC; внешний Content Pack Loader в Фазе 4 подключается к тому же Registry, без второй схемы персонажей.
 - Минимальный тест двух игроков и одной NPC.
 
 Критерий выхода: NPC и её состояние сохраняются после перезапуска; два игрока имеют раздельные профили отношений; один мир не читает данные другого.
@@ -113,6 +115,7 @@
 - Внешние модели, текстуры, анимации и определения персонажей.
 - Metadata происхождения, автора, лицензии и разрешений для каждого ассета.
 - Capability report импортированной модели и fallback для отсутствующих rig/face/physics channels.
+- Подключение внешних Character Definition к Registry, созданному в Фазе 2; проверка ID/version и совместимости без создания параллельного реестра персонажей.
 - Локальные пользовательские модели без обязательной раздачи другим клиентам.
 - Приоритеты и переопределения ресурсов.
 - Проверка checksum и версия пакета.
@@ -127,6 +130,9 @@
 - Поддержка локальных endpoint и облачных API.
 - Тайм-аут, retry, streaming при наличии поддержки.
 - Диалоговый экран и контекст последних N сообщений (default 10).
+- Единственный Context Builder с начальными источниками: Character Definition/system policy, Relationship/Runtime snapshot и durable Conversation History. Lorebook/Diary/Action Memory/Thoughts/Summary пока не активированы.
+- Расширяемый Context Source Registry: Фаза 6 подключает memory stores через адаптеры к этому же сборщику контекста.
+- Контекст каждой секции отличает NOT_YET_ENABLED от доступного, но пустого источника; отсутствие будущего store не маскируется под успешный пустой retrieval.
 - Dialogue Presentation Adapter: реальные реакции на собеседника — поворот/взгляд на говорящего, listening/thinking/speaking states, ограниченные conversational expressions и простые жесты через Motion Engine.
 - Передавать в Face/Body Controller только валидированные semantic states/expressions, а не сырые LLM-команды на кости/morph weights; при отсутствии metadata использовать нейтральную реакцию.
 - Системные промты и роли сообщений.
@@ -145,39 +151,43 @@
 - Схема SQLite/JSON, миграции, резервные копии.
 - Изоляция world/NPC/player.
 - Индексация и правила retention.
+- Все хранилища используют единый Storage Facade и backend из Фазы 0/1; Conversation History расширяется, а не переносится во вторую БД.
+- Подготовить Action Memory и Thoughts schema/API, но не считать их end-to-end функциями до подключения источников и потребителей в Фазе 7.
 
 Критерий выхода: записи не смешиваются между NPC, игроками и мирами; все хранилища восстанавливаются после перезапуска; история соблюдает настраиваемый лимит.
 
-### Фаза 7. Гномики и планировщик
+### Фаза 7. Когнитивные гномики и планировщик
+
 Задачи:
-- Memorizer с доступом только к History + Thoughts.
-- Embedding adapter и поиск кандидатов.
-- Judge с дедупликацией, объединением и сохранением provenance.
-- Thinker по интервалу и событиям.
-- Bot brain-side contract: typed plan/action-intent schema, связь с Goal Scheduler и Motion Engine; исполняющая часть Bot и world-side effects реализуются в Фазе 8 после появления Action Validator/Executor.
-- Affective Presentation Mapper: перевод структурированных эмоций/интенсивности/внимания Thinker в устойчивые face/body presentation states с smoothing, hysteresis, expiry и fallback; не давать Thinker прямое управление костями.
-- Связать validated Thoughts с текущим поведением, не превращая desire/inference в подтверждённый факт или прямую команду мира.
-- Summarizer каждые 10 сообщений с учётом предыдущей сводки.
-- Очереди, дедупликация, лимиты, тайм-ауты, retry и метрики.
-- Ручной запуск/отладка из меню.
+- Реализовать ограниченный World Event Feed Foundation, который собирает server-side события, необходимые Thinker и Action Memory: dialogue lifecycle, вход/выход/приближение игрока, существенные наблюдаемые взаимодействия и важные изменения NPC. Это источник данных, не полный автономный Observer и не action executor.
+- Реализовать Gnome Scheduler: bounded queues, приоритеты, per-gnome/per-provider limits, deduplication, cancellation, retry/backoff, checkpoint и metrics.
+- Совместно подключить Memorizer (History + Thoughts) и Thinker (создаёт/обновляет Thoughts); ThoughtChanged, watermark и защита от stale results проверяются как одна связка.
+- Подключить Judge к candidate pipeline и Diary; Thinker использует Diary только после того, как candidate → Judge → transactional Diary write реально подключены.
+- Подключить Summarizer к finalized Conversation History и доступным Event Feed/Action Memory событиям; Thinker получает Summary через тот же Context Builder.
+- Embedding adapter/profile и отдельные provider presets для каждого гномика.
+- Affective Presentation Mapper: валидированные emotion/intensity/attention/desire состояния Thinker передаются в Face/Body Controller с smoothing, expiry и fallback; не давать LLM управление костями.
+- Goal proposals Thinker сохраняются в durable Goal Proposal Inbox с ID/scope/evidence/expiry/status=PENDING. В этой фазе они не исполняются и не меняют игровой мир.
+- Ручной запуск/отладка из меню: permission check, preview/dry-run, status, cancel/retry и безопасная диагностика.
+- Определить Bot typed plan/action-intent contract. Сам Bot как пятый работающий гномик переносится в совместную реализацию Фазы 8, когда готовы Goal Scheduler и Action Executor.
 
-Критерий выхода: каждый сервис работает изолированно; сбой одного провайдера не ломает чат и другие сервисы; повторная обработка не создаёт дубли в дневнике/сводке; Thinker формирует устойчивые внутренние состояния, которые реально отображаются через Face/Body Controller, а не остаются только текстом в хранилище.
+**Критерий выхода:** единый end-to-end цикл Event Feed → Action Memory → Thinker → Thoughts → Memorizer → Judge → Diary → Thinker, плюс Summarizer и Context Builder. Гномики не принимаются как набор отдельных изолированных сервисов: проверяются циклические связи, retry/restart, watermark, scope isolation и деградация. Goal proposals сохраняются, но не исполняются до Фазы 8. Ошибка одного provider не ломает основной диалог.
 
-### Фаза 8. Автономное поведение и действия
+### Фаза 8. Автономность: Bot, Goal Scheduler, World Observer и действия
+
 Задачи:
-- Event Observer для действий игроков и мира.
-- Goal Scheduler и приоритеты.
-- Навигация и следование.
-- Взаимодействие с предметами/блоками через whitelist.
-- Реакции на игроков и окружение.
-- Связать Brain-to-Motion pipeline: Thinker/validated Thoughts → Goal Scheduler → Bot typed plan → Action Validator → Navigation/Action Executor → Motion Engine.
-- Подключить World Observer к реакциям NPC на игроков и окружение; обеспечить обновление целей, прерывания и переназначение движения.
-- Использовать процедурные жесты, взгляд и эмоциональные presentation states из предыдущих фаз в реальном контексте действий/перемещения.
-- Комбинирование нескольких одновременных задач (например, идти + смотреть + тянуться) с разрешением конфликтов.
-- Прерывание и переназначение задач при внешних событиях без потери устойчивости позы.
-- Проверки безопасности каждого действия.
+- Расширить Event Feed Фазы 7 до полного World Observer: event catalogue, actor/target/outcome/location/time/visibility, relevance, durability, deduplication и coalescing.
+- Реализовать Goal Scheduler, который забирает pending proposals из Goal Proposal Inbox, проверяет expiry, evidence, preconditions, priority, dependencies и правила прерывания.
+- Реализовать Bot как пятого гномика: преобразование выбранной цели в typed action plan.
+- Одновременно реализовать Action Registry, Action Validator и Action Executor: whitelist, schema, permissions, distance/range, cooldown, world preconditions, idempotency, cancellation и uncertain-result reconciliation.
+- Реализовать Navigation/Follow: pathfinding, moving target, repath, stuck detection, obstacles, unloaded chunks, stop/cancel и arrival predicate.
+- Подключить Navigation root movement/velocity к Motion Engine; заменить synthetic inputs Фазы 3 на реальные path/target/action inputs.
+- Подключить фактические action outcomes и World Observer к Action Memory и Thinker; обновлять цели после успехов, ошибок и внешних событий.
+- Обеспечить event/action deduplication и anti-loop: собственные действия NPC не должны бесконечно запускать сами себя.
+- Multiplayer visibility, permissions и server authority для всех автономных действий.
 
-Критерий выхода: NPC выполняет ограниченный набор самостоятельных задач; намерения мозга реально приводят к валидированным действиям и движениям; персонаж реагирует на события мира, может подойти/следовать/остановиться/посмотреть/взаимодействовать, корректно меняет и прерывает задачи, комбинирует несколько motion tasks и не исполняет недопустимые команды модели. Это первая фаза, где поведение можно считать автономным, а не анимационным тестом.
+**Важно:** Bot, Goal Scheduler, полный World Observer, Action Validator/Executor, Navigation и Motion bridge реализуются и принимаются как единая вертикальная функция. Их нельзя объявлять готовыми по отдельности, потому что они образуют цикл: цель → план → проверка → действие → движение → наблюдаемый результат → память/Thinker → следующая цель.
+
+**Критерий выхода:** NPC самостоятельно выполняет разрешённые цели; Thinker/Bot proposals доходят до реальных проверенных действий и движений; препятствия, moving targets, отмена, смена цели, повтор доставки, side-effect retry и мультиплеерная авторитетность обработаны. Gaze, gesture, locomotion и emotion корректно смешиваются и прерываются. Это первая фаза полноценного автономного поведения.
 
 ### Фаза 9. Голос
 Задачи:
@@ -208,6 +218,7 @@
 - Перенос мира Агнор в Minecraft.
 - Дополнительные пакеты персонажей.
 - Addon-интеграции с другими модами.
+- После завершения Action/Goal/Event API в Фазе 8 и compatibility hardening в Фазе 10 заморозить стабильный versioned Optional Addon API.
 - Отдельный Create adapter после проверки доступной версии и loader compatibility.
 - Расширенная голосовая коммуникация и дополнительные виды интеракций.
 - Перед финальным релизом полной версии заменить временные модели из Asset Replacement Register на собственные или разрешённые аналоги либо удалить их.
