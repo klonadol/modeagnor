@@ -121,6 +121,8 @@ Minecraft (Fabric 1.21.1)
 
 **Порядок реализации:** базовая Character Definition schema и Registry появляются вместе с Character Runtime. На этой стадии используется встроенный/dev source. Content Packs позже регистрируют внешние definitions через тот же Registry и versioned schema; отдельный pack-only формат персонажа запрещён. Goal Scheduler и Action Executor описаны здесь как логические компоненты, но их рабочая вертикальная реализация относится к Фазе 8, когда готовы Bot, World Observer, Navigation и проверки действий.
 
+NPC server runtime не зависит от клиентского renderer. В Фазе 2 сервер создаёт и сохраняет Character Runtime по UUID даже если модельный runtime ещё не подключён; model/asset references остаются данными Character Definition. Клиенты получают безопасный placeholder state `PRESENTATION_NOT_READY`. В Фазе 3 Character Presentation Adapter привязывает renderer/rig/pose controller к уже существующему NPC UUID и snapshots. Он не создаёт второй NPC identity/lifecycle и не является prerequisite для server activation. Если клиент не имеет подходящего ассета или renderer capability, placeholder сохраняется, а NPC logic продолжает работать.
+
 ## 5. Система памяти
 
 Все хранилища должны иметь явную область принадлежности. Минимальные измерения: world UUID, NPC UUID, player UUID (nullable для общих данных), время, тип записи и источник.
