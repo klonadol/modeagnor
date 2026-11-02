@@ -178,12 +178,13 @@
 1. Каталог пакетов, declarative Content Pack manifest/schema version, package ID/version, supported Agnor/Content Pack compatibility range и dependencies. Не смешивать эту версию с executable Addon API.
 2. Scan → validate → stage → resolve → activate; отдельные enable/disable/remove и rollback transitions.
 3. Priority/override resolution: порядок base pack, dependency pack, user pack и explicit override; детерминированное разрешение конфликтов ID/resources.
-4. Package data model: character definitions, prompt templates, model/texture/animation resources, facial profiles и declarative behavior settings.
+4. Package data model: character definitions, prompt templates, model/texture/animation resources, facial profiles, voice descriptors и declarative behavior settings. Все эти элементы — пассивные декларативные данные; loader не исполняет prompts, goals, actions или scripts.
 5. Разделение pack data и host-only settings: credentials, endpoint secrets, private memory и world save данные запрещены.
 6. Security: path traversal, archive expansion limits, file count/size/type/signature, checksum, manifest schema, dependency cycles.
 7. Hot reload boundary: какие типы ресурсов можно перезагрузить без restart; какие требуют NPC quiescence/recreation; как invalid update откатывается.
 8. Client availability/sync policy: allowed redistribution + admin opt-in, local-only assets, trusted source/manual install/refusal при mismatch.
 9. Provenance/license metadata и capability fallback на каждом asset.
+10. Consumer readiness/activation: model/assets/definitions могут активироваться после успешной pack validation; prompt templates лишь регистрируются как data source и начинают использоваться Main Dialogue только в Phase 5, gnome prompts/policies — в Phase 7, Bot planning data — в Phase 8, voice descriptors/TTS assets — в Phase 9. Неактивный consumer даёт явный NOT_YET_ENABLED, но не блокирует загрузку независимых ресурсов пакета.
 10. Definition Source Adapter: validated pack definitions регистрируются через Phase 2 Character Definition Registry и его schema/version; pack loader не создаёт параллельную систему персонажей.
 
 **Артефакты:** manifest/schema, precedence rules, package state machine, validation threat cases, hot-reload matrix, multiplayer transfer policy.
@@ -194,7 +195,7 @@
 
 **Проектируем:**
 1. Provider-neutral chat request/response и adapter lifecycle; capability negotiation, local/cloud endpoint, TLS, auth, errors.
-2. Preset resolution: main dialogue profile независимо от gnome/embedding/TTS; snapshot version конфигурации на каждый request.
+2. Provider Gateway foundation и Preset Registry: в этой фазе активен только Main Dialogue profile и соответствующий chat capability; preset slots могут иметь назначения для gnomes/embedding/Bot/TTS, но остаются NOT_YET_ENABLED до появления consumers (cognitive gnomes + Embedding Phase 7; Bot Phase 8; TTS Phase 9). Каждый request фиксирует snapshot version настроек, а отсутствие будущего preset не блокирует основной диалог.
 3. Secret resolver и host-only storage; masked UI, rotation, redaction, export/import без credentials.
 4. Dialogue lifecycle: request validation, idempotency, inbound persistence, context assembly, provider call, structured response validation, response commit, delivery/reconciliation.
 5. System prompts, message roles и разделение trusted policy/untrusted conversation/lorebook data.
@@ -383,6 +384,8 @@
 | Context Builder | Character Definition, Runtime/Relationship state, History; позже memory stores | Dialogue, Thinker | Minimal source set — Phase 5; source adapters — Phase 6/7 | Один Context Builder с расширяемым source registry; будущие источники помечаются NOT_YET_ENABLED, не выдают ложный пустой результат |
 | Dialogue → gnome jobs | Accepted/finalized History message transactions | Memorizer, Summarizer, Thinker | Event outbox — Phase 5; per-consumer delivery records/replay — Phase 7 | Commit+event are atomic; each `event_id + consumer_id` is independently claimed/acknowledged; raw dialogue is not copied into Action Memory |
 | World Event Feed → Action Memory | NPC lifecycle hooks + server-observed player/world events | Thinker, Summarizer, Context Builder | Basic producer — Phase 7; full World Observer/outcomes — Phase 8 | Typed world/action events only; message contents remain in Conversation History |
+| Provider preset activation | Provider profile config + provider adapter capability | Dialogue / gnomes / Bot / Embedding / TTS | Main Dialogue active — Phase 5; cognitive gnomes + Embedding — Phase 7; Bot — Phase 8; TTS — Phase 9 | Gateway/registry common foundation can exist earlier; each destination becomes active only with its consumer, and missing future presets do not block Main Dialogue |
+| Pack prompt/behavior data | Declarative pack metadata and validated Character Definitions | Dialogue / gnomes / Bot / TTS consumers | Registered as passive data — Phase 4; consumer activation — Phase 5/7/8/9 | Pack loading does not execute content; inactive consumer status is NOT_YET_ENABLED |
 | Dialogue presentation | Finalized dialogue events + optional validated emotion/speech-act metadata | Face Controller / Motion Engine | Face API — Phase 3; dialogue adapter — Phase 5 | Не активировать reaction до Phase 5; без metadata — neutral fallback |
 | Action Memory | Server-observed event feed | Thinker, Summarizer, Context Builder | Storage contract — Phase 6; basic producer — Phase 7; full event/outcome producers — Phase 8 | Producer вводится не позже consumer; Phase 7/8 расширяют один feed/store |
 | Thoughts ↔ Memorizer | Thinker пишет Thoughts; Memorizer читает Thoughts | Memory pipeline / Judge / Context | Schema — Phase 6; writer+reader — jointly Phase 7 | Взаимозависимые worker contracts и acceptance в одной фазе |
