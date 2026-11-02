@@ -51,15 +51,15 @@
 | Фаза ROADMAP | Основные требования ROADMAP | Разделы Blueprint | Результат сверки |
 |---|---|---|---|
 | 0. Технические проверки | Fabric/client/server, каталоги, базовый packet, renderer, IK, gait, skinning/morph/blending/physics, host pose sync, лицензии и модельные тесты | 1–3, 10, 13–15, 20, 22–25 | **Частично.** Компоненты и критерии есть; нужен единый протокол spike, таблица измерений и решение по storage/catalog path |
-| 1. Каркас | Lifecycle, common/server/client, config/catalogs, protocol/versioning, permissions, settings UI, safe logging | 1–3, 15–16, 18–20, 24 | **Частично.** Границы и network security есть; нужно конкретизировать config/data roots, config validation/apply, minimal UI command lifecycle и logging policy |
-| 2. Character Runtime | NPC UUID/definition, create/delete/load, runtime state, relationships per player UUID, world/NPC/player saves, two-player isolation | 3–4, 7, 18, 21, 25 | **Частично.** Основные объекты есть; нужно определить lifecycle state machine, ownership, deletion semantics и согласование world save/load |
+| 1. Каркас | Lifecycle, common/server/client, config/catalogs, protocol/versioning, permissions, settings UI, safe logging, единый Storage Facade foundation | 1–3, 7, 15–16, 18–20, 24 | **Частично.** Единый persistence/storage foundation используется далее NPC state, dialogue history и memory stores; не создавать параллельные ad-hoc storage paths |
+| 2. Character Runtime | NPC UUID, базовый Character Definition Registry, create/delete/load, runtime state, relationships per player UUID, world/NPC/player saves, two-player isolation | 3–4, 7, 18, 21, 25 | **Частично.** Базовая схема и Registry создаются в Phase 2; Phase 4 добавляет внешний Pack Definition Source к тому же Registry, не вводя второй формат определения персонажа |
 | 3. 3D и visual control | Import готовой модели, rig/renderer, animation layers, Motion Engine foundation, IK, gait primitives, facial rig capability, secondary physics, pose sync | 13–14, 21.4, 23, 25 | **Частично.** Фаза 3 создаёт технический исполнительный слой и test harness, но не полноценное поведение. Dialogue reactions подключаются в Фазе 5, Thinker affect в Фазе 7, autonomous world motion в Фазе 8, lip-sync в Фазе 9 |
 | 4. Content Packs | Manifest, scan/enable/disable, assets/definitions/prompts, provenance/license, capability report/fallback, priority overrides, checksum/version, safe client policy | 14–15, 19–20 | **Частично.** Validation/sync есть; не были выделены package activation lifecycle, override precedence, enable/disable/rollback и hot-reload boundary |
-| 5. Provider Gateway/dialogue | LLM adapters, independent presets, local/cloud endpoints, timeouts/retry/streaming, last N messages, system prompts/roles, host secrets, dialogue UI | 5–6, 10, 15–16, 24 | **Частично.** API flow есть; нужно явно задать staged durable History: базовые последние N сообщений появляются в Фазе 5, затем расширяются в Фазе 6 без второго конкурирующего хранилища |
-| 6. Шесть хранилищ | Все 6 stores, SQLite/JSON choice, migrations/backups, world/NPC/player isolation, indexes/retention | 7, 19–20, 22, 25 | **Частично.** Scope/transactions/migrations описаны; надо добавить backup/restore/retention lifecycle и переход от Phase 2/5 data без потери данных |
-| 7. Гномики и scheduler | Memorizer, Embedding, Judge, Thinker, Summarizer, Bot contract, queues/retries/metrics, manual run/debug UI | 8–10, 13.5, 16, 19–20, 25 | **Частично.** Мозговые сервисы и Affective Presentation Mapper подключаются здесь; Bot получает typed plan contract, а реальное исполнение целей/движений начинается в Фазе 8 |
-| 8. Автономность | Observer, Goal Scheduler, Bot execution, navigation/follow, whitelist interactions, brain-to-motion reactions, simultaneous motion, interruption and safety | 4, 11–13, 13.5, 21.3–21.4, 25 | **В основном покрыто.** Здесь впервые соединяются Thinker/Bot, world events, goals/actions/navigation и Motion Engine в реальное автономное поведение; до реализации закрыть state machine, nav/stuck policy, side-effect idempotency и motion conflict scenarios |
-| 9. Голос | TTS adapters/presets, per-NPC voice, audio queue/interruption/cache, client playback, viseme-driven lip-sync, graceful degradation | 10, 13, 13.5, 15–17, 21.6 | **Частично.** Рабочий lip-sync подключается после появления TTS/audio timing; ранний Face Controller остаётся исполнительной основой, а не источником речи |
+| 5. Provider Gateway/dialogue | LLM adapters, independent presets, local/cloud endpoints, timeouts/retry/streaming, durable dialogue history, system prompts/roles, host secrets, initial Context Builder sources and basic presentation reactions | 5–6, 10, 13.5, 15–16, 24 | **Частично.** Context Builder starts with sources available in Phase 5; Phase 6 registers memory stores through the same interface. No second Context Builder or separate history storage |
+| 6. Шесть хранилищ | Все 6 stores, единый storage API/backend, migrations/backups, world/NPC/player isolation, indexes/retention и event-memory contract | 7, 19–20, 22, 25 | **Частично.** Схемы хранилищ готовы, но Action Memory не считается рабочим без Event Feed producer Phase 7; Thoughts не считается рабочим без Thinker writer Phase 7 |
+| 7. Когнитивные гномики и scheduler | Event Feed foundation, Memorizer, Judge, Thinker, Summarizer, Affective Mapper, Goal Proposal Inbox, queues/retries/metrics, manual run/debug UI; Bot только contract | 8–10, 13.5, 16, 19–20, 22, 25 | **Совместная интеграция обязательна.** Четыре когнитивных гномика связаны входами/выходами; Event Feed нужен Thinker и Action Memory. Их нельзя принимать как четыре изолированные законченные функции |
+| 8. Автономность | Full World Observer, Goal Scheduler consuming proposals, Bot (fifth gnome), Action Registry/Validator/Executor, Navigation, Action Memory outcome events, Motion Engine bridge | 4, 8, 11–13, 13.5, 21.3–21.4, 22, 25 | **Единый вертикальный этап.** Goal Scheduler, Bot, validator/executor, navigation and full observer form one feedback loop and must be integrated/tested together |
+| 9. Голос | TTS adapters/presets, per-NPC voice, audio queue/interruption/cache, client playback, real viseme-driven lip-sync integrated with Face Controller, graceful degradation | 10, 13, 13.5, 15–17, 21.6 | **Совместная интеграция.** TTS generation, audio playback clock and viseme timeline must be implemented and accepted as one end-to-end feature |
 | 10. Полировка и первый релиз | Multiplayer regression, load, long sessions/restart, errors/migrations, API cost/performance settings, install/pack docs, compatibility matrix | 19–25 | **Частично.** Test taxonomy есть; нужно формализовать release matrix, soak tests, packaging/update/rollback и user documentation gate |
 | 11. Мир и финальная версия | World transfer, character packs, addon integrations/Create, expanded voice/interactions, final replacement of temporary assets | 14, 21, 26, 27–28 | **Есть пробел.** Blueprint не содержал отдельного migration workflow авторского мира и полного optional addon API contract; они добавлены в разделы 27–28 |
 
@@ -130,6 +130,7 @@
 6. Settings UI: pending → server response → persisted result; ошибки и permission denial отображаются по серверному ответу.
 7. Safe logging/diagnostics: correlation IDs, redaction, уровни логирования, opt-in для чувствительной диагностики.
 8. Threading contract: server thread только для bounded state/world changes; background executors и возврат результата через server scheduler.
+9. Storage Facade foundation: единый интерфейс транзакций, schema versioning, scope enforcement, world-scoped repositories and migrations. Backend выбирается в Phase 0; этот же сервис расширяется в фазах 2, 5 и 6, без отдельной базы на каждую функцию.
 
 **Артефакты:** lifecycle diagram, config schema, каталог путей, packet contract, минимальная permission matrix, UI request state machine, logging/redaction rules.
 
@@ -145,6 +146,7 @@
 5. Relationship State: ключ NPC UUID + Player UUID; ник только display; lifecycle игрока и правила удаления/retention.
 6. World/NPC/player persistence: границы save data, atomic writes, load ordering, world isolation и backup strategy.
 7. Concurrency: единственный владелец runtime state конкретного NPC; stale callback после unload не применяет старые изменения.
+8. Базовый Character Definition schema + Registry: встроенный/dev definition source для первой NPC, стабильный ID/version и typed references на prompts/assets. Внешние Content Packs позже подключаются как дополнительный source к тому же Registry; не создавать отдельную pack-only schema.
 
 **Артефакты:** NPC lifecycle/state diagram, Character Definition schema, ownership rules, relationship schema, save/load/delete transaction map и два-player isolation scenarios.
 
@@ -180,6 +182,7 @@
 7. Hot reload boundary: какие типы ресурсов можно перезагрузить без restart; какие требуют NPC quiescence/recreation; как invalid update откатывается.
 8. Client availability/sync policy: allowed redistribution + admin opt-in, local-only assets, trusted source/manual install/refusal при mismatch.
 9. Provenance/license metadata и capability fallback на каждом asset.
+10. Definition Source Adapter: validated pack definitions регистрируются через Phase 2 Character Definition Registry и его schema/version; pack loader не создаёт параллельную систему персонажей.
 
 **Артефакты:** manifest/schema, precedence rules, package state machine, validation threat cases, hot-reload matrix, multiplayer transfer policy.
 
@@ -197,6 +200,8 @@
 7. Streaming state: partial chunks не durable; финальная фиксация; interrupted response; безопасное восстановление доставки.
 8. Retry semantics: различать transport retry и повтор inference; uncertain provider acceptance требует reconciliation.
 9. Dialogue UI request state machine и поведение при server/provider timeout/disconnect.
+10. Единственный Context Builder создаётся здесь с доступными источниками: Character Definition/system policy, Relationship/Runtime snapshot и finalized Conversation History. Будущие memory stores пока имеют статус NOT_YET_ENABLED, а не имитируют пустой успешный результат.
+11. Context Source Registry: в Phase 6 новые memory stores подключаются адаптерами к тому же Context Builder без переписывания dialogue pipeline или второго сборщика контекста.
 
 **Важное staging решение:** Фаза 5 реализует durable minimal Conversation History через общий Storage API — те же message IDs, scope и последовательность, которые будут использоваться далее. Фаза 6 расширяет этот же контракт до полной системы памяти. Не создавать временное второе хранилище истории и не переписывать диалог при добавлении шести stores.
 
@@ -217,45 +222,53 @@
 6. Retention: срок/условие для History, Action Memory, Thoughts, pending candidates, Diary и Summary; ничего не удалять без явной policy.
 7. Embedding index lifecycle: provider/model/version, rebuild/reindex, stale vector handling и fallback. Сам adapter подключается в Phase 7, но storage interface планируется заранее.
 8. Day/period abstraction для Daily Summary как open decision, который должен быть закрыт до реализации Summary в Phase 7.
+9. Все stores создаются через Storage Facade, уже используемый Phase 2 и Phase 5. History переиспользует существующие message IDs/scope/sequence; отдельных БД или временных форматов не создавать.
+10. Action Memory storage schema/API готовится здесь, но event-feed writer ещё не подключён; функциональность хранилища принимается только после producer Phase 7.
+11. Thoughts schema/API готовится здесь, но runtime writer/reader cycle появляется только в совместной интеграции Phase 7.
 
 **Артефакты:** ER/data model, schema versioning, migration scripts plan, backup/restore procedure, scope matrix, retention matrix и crash-recovery tests.
 
 **Design gate:** все данные изолированы по world/NPC/player UUID; миграция и восстановление проверены; перезапуск не теряет сообщения/мысли/дневник; повреждение не приводит к silent reset.
 
-#### Фаза 7 — гномики и Gnome Scheduler
+#### Фаза 7 — когнитивные гномики и Gnome Scheduler
 
-**Проектируем и реализуем по зависимостям:**
-1. Scheduler envelope, queue partitions, per-gnome/per-provider concurrency, priorities, fairness, dedupe, retry, cancellation, checkpoint и metrics.
-2. Memorizer: только History + Thoughts; candidates с provenance и epistemic type; watermark и передача Judge.
-3. Embedding adapter/profile: версии моделей/индекса, similarity retrieval, rebuild, fallback.
-4. Judge: scoped candidate retrieval, duplicate/conflict logic, ACCEPT/MERGE/SPLIT/REJECT/DEFER и transactional lineage.
-5. Thinker: target 30 seconds + event triggers, context snapshot, stale-result rejection, structured Thoughts и goal proposals.
-6. Summarizer: каждые 10 сообщений; previous summary + new range; watermark, idempotency, day boundary и no data loss.
-7. Независимые provider presets для каждого gnome; ошибка одного не блокирует другие.
-8. Affective/Presentation Bridge: валидированные structured Thinker outputs (emotion, intensity, desire/attention state) переводятся детерминированным mapping в разрешённые face/body intents. Значения Thinker не являются прямыми командами костям и не обходят Task Planner/Action Validator.
-9. Разделить cognitive goal proposals и presentation state: персонаж может выглядеть заинтересованным/уставшим/настороженным без обязательного игрового действия; goal не обязан менять эмоцию.
-10. Manual run/debug UI: permission check, dry-run/preview, task status, cancel/retry policy, sanitized diagnostics; ручной запуск не обходит validators.
-11. **Bot в этой фазе:** фиксируется service contract, typed plan schema и связь с Goal Scheduler/Motion Engine; полный action execution не реализуется раньше Фазы 8, чтобы не смешивать memory pipeline с world mutation.
+**Обязательный объём совместной реализации:**
+1. Сначала поднять **World Event Feed Foundation** — ограниченный server-side producer релевантных событий NPC/игрока: dialogue lifecycle, вход/выход и приближение игрока, наблюдаемые взаимодействия рядом с NPC и существенные изменения NPC. Он пишет типизированные записи в Action Memory. Это не полный World Observer Фазы 8 и не исполняет actions.
+2. Реализовать Scheduler envelope, bounded queue partitions, per-gnome/per-provider concurrency, priorities, fairness, dedupe, retry, cancellation, checkpoint и metrics.
+3. Совместно подключить Memorizer и Thinker: Memorizer читает History + Thoughts, Thinker создаёт/обновляет Thoughts. Их contracts, watermark, ThoughtChanged trigger и stale-result reconciliation проверяются вместе; Memorizer нельзя принимать как законченную функцию до появления Thinker writer.
+4. Подключить Judge к candidate pipeline и Diary transactionally. Thinker читает утверждённый Diary; поэтому цепочка Memorizer → Judge → Diary → Thinker принимается только как единая интеграция.
+5. Подключить Summarizer к finalized Conversation History и доступным Event Feed/Action Memory events; Thinker получает предыдущую Summary. SummaryUpdated не запускает бесконечный trigger loop.
+6. Подключить независимые provider presets каждого гномика и Embedding adapter/profile (model/index version, reindex, fallback).
+7. Подключить Affective/Presentation Mapper: validated Thinker outputs (emotion/intensity/attention/desire) переводятся в разрешённые face/body intents с smoothing, hysteresis, expiry и rig-capability fallback.
+8. Разделить cognitive goal proposals и presentation state: Thinker может сохранять желания/цели независимо от эмоций и не выдаёт world actions напрямую.
+9. Ввести durable **Goal Proposal Inbox/Outbox**: Thinker сохраняет proposals с ID, scope, evidence, priority hint, expiry и status=PENDING. В Phase 7 они валидируются по schema и сохраняются; активировать игровые действия до Goal Scheduler Phase 8 запрещено.
+10. Реализовать manual run/debug UI с permission check, dry-run/preview, task status, cancel/retry policy и sanitized diagnostics; ручной запуск не обходит validators.
+11. **Bot в Phase 7 — только contract/schema design.** Пятый гномик не объявляется реализованным и не запускается до совместной Фазы 8 с Goal Scheduler/Action Executor/Navigation.
 
-**Артефакты:** scheduler state machine, gnome input/output schemas, provider assignment matrix, task retry matrix, manual diagnostics UI flow, affect-to-expression mapping contract и end-to-end memory/Thinker tests.
+**Почему это одна интеграция:** Memorizer читает Thoughts, создаваемые Thinker; Judge формирует Diary, читаемый Thinker; Summarizer обновляет Summary, читаемую Thinker; Event Feed наполняет Action Memory, читаемую Thinker и Summarizer. Приёмка относится к общему циклу четырёх когнитивных гномиков + Scheduler + Event Feed, а не к разрозненным unit-ready сервисам.
 
-**Design gate:** Memorizer не обходит Judge; повтор не создаёт duplicates; Thinker не вызывает world actions напрямую; stale results отбрасываются; emotion/attention outputs доходят до Face/Body Controller через валидированный mapping; один provider failure изолирован.
+**Артефакты:** scheduler state machine, event-feed schema/adapters, gnome input/output schemas, provider assignment matrix, task retry matrix, goal proposal inbox contract, affect mapping, manual diagnostics UI flow и end-to-end memory/Thinker tests.
 
-#### Фаза 8 — автономное поведение и действия
+**Design gate:** полный цикл Event Feed → Action Memory → Thinker → Thoughts → Memorizer → Judge → Diary → Thinker плюс Summarizer ↔ Context Builder. Повторы не создают duplicates; watermark не теряет данные; stale results отбрасываются; private scopes сохраняются; proposals остаются pending и не вызывают world actions; один provider failure изолирован.
 
-**Проектируем:**
-1. World Observer event catalogue: event type, actor/target, relevance, visibility, durability, dedupe/coalesce.
-2. Goal Scheduler policy: priority, dependencies, preemption cost, expiry, success/failure and anti-loop rules.
-3. Bot action planner и whitelist registry; schema, permission, range, cooldown, world preconditions и capability checks.
-4. Action Executor lifecycle, idempotency class, uncertain outcome reconciliation и audit record.
-5. Navigation: path, follow target, repath, stuck detection, obstacles, unloaded chunks, stop/cancel and arrival predicate.
-6. Motion task bridge: walk_to, look_at, reach, wave etc.; coordination and interruption across simultaneous tasks.
-7. Event feedback: действие NPC → observed outcome → Action Memory/Thinker; предотвращение бесконечного self-trigger loop.
-8. Multiplayer visibility and permission policy for autonomous actions.
+#### Фаза 8 — автономность: Bot, Goal Scheduler, World Observer и Action Runtime
 
-**Артефакты:** event catalogue, goal/action schemas, whitelist matrix, state transitions, navigation failure taxonomy, brain-to-motion orchestration graph и combined-motion acceptance suite.
+**Обязательная совместная вертикальная реализация:**
+1. Расширить Phase 7 Event Feed до полного World Observer event catalogue: typed actors/targets/outcomes/location/time/visibility, event importance, durability, dedupe/coalesce и server observation policy.
+2. Реализовать Goal Scheduler и подключить его к durable Goal Proposal Inbox из Phase 7: проверить expiry/evidence/preconditions/priority, выбрать активную цель, управлять dependencies, preemption, retries и anti-loop.
+3. Реализовать **Bot как пятого гномика**: преобразовать выбранную Goal в typed action plan; это runtime реализация schema, подготовленной в Phase 7.
+4. Совместно реализовать Action Registry, Action Validator и Action Executor: whitelist schemas, permission/range/cooldown/world preconditions, idempotency, cancellation, uncertain outcome reconciliation и audit.
+5. Совместно реализовать Navigation/Follow: path, repath, stuck detection, obstacles, unloaded chunks, moving targets, stop/cancel, arrival predicate и фактический movement result.
+6. Соединить Navigation velocity/root movement с Motion Engine gait Phase 3; подключить gesture/reach/look-at и multi-task arbitration к реальным action targets, а не synthetic inputs.
+7. Подключить action outcomes и расширенные World Observer events к Action Memory и Thinker; обновлять состояние/цели после успеха, отказа или изменения мира.
+8. Реализовать event/action feedback loop с correlation IDs, deduplication self-generated events и ограничением повторных действий.
+9. Проверить multiplayer visibility/permissions и server authority для каждого действия.
 
-**Design gate:** Thinker/Bot intent проходит Goal Scheduler → Action Validator → Navigation/Action Executor → Motion Engine; NPC самостоятельно выполняет разрешённые задачи; препятствие/отмена/изменение цели корректно обрабатывается; gaze/gesture/locomotion/emotion сочетаются и прерываются без развала позы; ни одна модель не исполняет произвольную команду; фактический outcome подтверждён миром.
+**Почему это одна вертикальная группа:** Goal Scheduler выбирает цель для Bot; Bot требует Validator/Executor; Navigation и Motion Engine исполняют план; Observer фиксирует фактический outcome; Action Memory/Thinker обновляют состояние и создают следующие proposals. Нельзя выпускать эти компоненты как независимые готовые функции: обязательный результат — работающий замкнутый цикл с реальным изменением и проверкой world state.
+
+**Артефакты:** event catalogue, goal/action schemas, whitelist matrix, Goal Proposal consumer, Bot runtime, executor state machine, navigation failure taxonomy, brain-to-motion orchestration graph, feedback-loop policy и combined-motion acceptance suite.
+
+**Design gate:** Thinker proposal → Goal Scheduler → Bot → Action Validator/Executor → Navigation/Motion Engine → фактическое изменение/движение → World Observer → Action Memory/Thinker. Проверены препятствия, moving targets, permissions, отмена, stale proposal, duplicate events, side-effect retry, несколько клиентов и комбинации gaze/gesture/locomotion/emotion.
 
 #### Фаза 9 — голос
 
@@ -297,7 +310,7 @@
 3. Migration tool/process: read-only source inspection → manifest → dry run → staged conversion → validation → explicit approval → target import.
 4. Referential integrity: stable IDs, duplicate resolution, missing assets, orphan records, coordinates/dimension mapping, rollback and repeatability.
 5. World acceptance suite: ключевые локации, персонажи, отношения, история/лore и playable routes; источник никогда не перезаписывается.
-6. Optional addon API: versioned contracts и compatibility policy для регистрации новых interaction/action/event/goal types; отдельный addon не модифицирует Core и отсутствует без последствий.
+6. Optional addon API: после стабилизации Action/Goal/Event contracts в Phase 8 и release hardening в Phase 10 заморозить versioned contracts для регистрации новых interaction/action/event/goal types. В Phase 1 допускается только внутренняя модульная граница, не преждевременная фиксация публичного API. Отдельный addon не модифицирует Core и отсутствует без последствий.
 7. Create adapter: отдельная сборка; dependency/version detection; mapping Create blocks/events/actions; precondition/permission validation; отсутствие Create не меняет поведение Core. Совместимость не утверждать до теста конкретной Fabric build.
 8. Expanded voice/interactions и final asset rights audit.
 9. Только перед финальным full release после переноса мира заменить/удалить весь temporary restricted asset inventory; Phase 10 standalone companion release этим не блокируется.
@@ -308,20 +321,18 @@
 
 ### 0.7 Ключевые зависимости между фазами
 
-- Phase 0 выбирает доказанные technical constraints; Phase 1 превращает минимальный spike в поддерживаемую структуру мода.
-- Phase 1 даёт lifecycle, config, network, permissions и Storage/Executor boundaries для всех последующих функций.
-- Phase 2 создаёт единый Character Runtime и базовую persistence-модель.
-- Phase 3 использует локальный test asset; formal Content Pack lifecycle появляется в Phase 4. Не делать Phase 3 зависимой от ещё не существующего pack manager.
-- Phase 4 поставляет character definitions/prompts/assets; host secrets и private memory остаются вне пакетов.
-- Phase 5 создаёт первую durable Conversation History через общий storage contract; Phase 6 расширяет её, а не заменяет.
-- Phase 6 завершает storage contracts до запуска фоновых gnomes в Phase 7.
-- Phase 7 фиксирует Bot API/plan schema; Phase 8 включает реальное выполнение действий.
-- Phase 3 создаёт face/rig/viseme capability и API; управляет ими только тестовый драйвер.
-- Phase 5 подключает реакции на диалог: взгляд на говорящего, listening/speaking state и ограниченные conversational expressions.
-- Phase 7 подключает эмоциональное/внутреннее состояние Thinker к face/body presentation intents.
-- Phase 8 соединяет Brain/Goal/Bot/Observer с Navigation и Motion Engine для живого автономного поведения.
-- Phase 9 подключает TTS viseme timeline к мимике и аудио playback; до этого lip-sync не считается реализованным.
-- Phase 10 стабилизирует standalone companion; Phase 11 переносит authored world и добавляет optional integrations.
+- Phase 0 выбирает доказанные runtime constraints (renderer, storage, server/network); Phase 1 строит единую поддерживаемую основу.
+- Phase 1 создаёт lifecycle, config, network, permissions и общий Storage Facade; все последующие данные используют его.
+- Phase 2 создаёт NPC Runtime, Character Definition Registry и runtime persistence. Phase 4 добавляет pack source к тому же Registry.
+- Phase 3 строит renderer/Motion/Face execution layer и проверяет его только scripted harness; synthetic gait не требует Navigation.
+- Phase 4 подключает external Content Pack loader к готовым Character Definition и runtime asset contracts.
+- Phase 5 создаёт единственный Context Builder и durable Conversation History. Он начинает только с имеющихся sources; Phase 6 расширяет source registry.
+- Phase 6 добавляет все шесть memory stores в общий Storage Facade; наличие store ещё не означает готовность его producer/consumer.
+- Phase 7 совместно реализует Event Feed foundation, Scheduler и четыре когнитивных гномика. Event Feed наполняет Action Memory; Thinker/Thoughts и Memorizer работают как взаимозависимая пара; Judge/Diary и Summarizer/Summary включаются в тот же acceptance cycle.
+- Phase 7 Thinker сохраняет goal proposals в durable inbox; они не выполняются без Goal Scheduler.
+- Phase 8 одновременно реализует full World Observer, Goal Scheduler, пятого гномика Bot, Action Validator/Executor, Navigation и Motion Engine bridge. Это один замкнутый вертикальный пользовательский сценарий.
+- Phase 3 задаёт Face Controller API; Phase 5 подключает реакции на диалог; Phase 7 — Thinker affect; Phase 8 — поведение при автономных действиях; Phase 9 — реальный TTS lip-sync.
+- Phase 11 addon implementation допускается только после Action/Goal/Event API design in Phase 8 и freeze/compatibility gate Phase 10.
 
 ### 0.8 Реестр пробелов, выявленных сверкой
 
@@ -341,11 +352,54 @@
 | GAP-12 | Optional addon API не имел отдельного контракта в Blueprint | Новый раздел 27: extension/addon API | 1/8 design; 11 implementation |
 | GAP-13 | Перенос авторского мира не имел безопасного migration workflow | Новый раздел 28: inventory, mapping, dry-run, validation, rollback | 11 |
 | GAP-14 | Не были разделены техническая возможность мимики и её смысловые источники | Face Controller/test harness Фазы 3; dialogue reactions Фазы 5; Thinker affect Фазы 7; autonomous intents Фазы 8; TTS lip-sync Фазы 9 | 3/5/7/8/9 |
+| GAP-15 | Phase 2 Character Definition и Phase 4 Pack definitions могли стать двумя схемами | Одна Character Definition schema/Registry в Phase 2; Pack Loader — source adapter Phase 4 | 2/4 |
+| GAP-16 | Phase 5 Context Builder ссылался на шесть хранилищ, которых ещё нет | Minimal source set Phase 5; расширяемый Source Registry в Phase 6 | 5–6 |
+| GAP-17 | Thinker Phase 7 потреблял Action Memory до появления Event Observer Phase 8 | Basic Event Feed producer вводится совместно с gnomes в Phase 7; full Observer/outcomes расширяются в Phase 8 | 7–8 |
+| GAP-18 | Memorizer/Thinker/Judge/Summarizer имеют взаимные producer/consumer зависимости | Четыре когнитивных гномика + Scheduler + Event Feed принимаются как единая Phase 7 интеграция | 7 |
+| GAP-19 | Thinker goal proposals не имели потребителя до Phase 8 | Durable Goal Proposal Inbox с PENDING/TTL в Phase 7; Goal Scheduler активирует их в Phase 8 | 7–8 |
+| GAP-20 | Bot, Goal Scheduler, Action Executor, Navigation и Observer образуют цикл, но были описаны как отдельные задачи | Совместная вертикальная реализация Bot + Goal/Action/Navigation/Observer/Motion bridge в Phase 8 | 8 |
+| GAP-21 | Публичный Addon API планировался до стабилизации Action/Goal/Event contracts | Внутренняя модульность Phase 1; API design Phase 8; freeze Phase 10; addon Phase 11 | 8–11 |
 
 Этот реестр не означает, что соответствующие функции реализованы. Исправление состоит в том, что проектирование теперь привязано к нужной фазе и имеет проверяемый выход.
 
 
-### 0.9 Принципиальная граница: исполнитель движения не является мозгом персонажа
+### 0.10 Результат аудита межфазных зависимостей
+
+| Функция / контракт | Требуемый producer | Потребитель | Где готовится / где включается | Исправление зависимости |
+|---|---|---|---|---|
+| Character Definition | Built-in/dev definition source | Character Registry, NPC Factory, Pack Loader | Schema/Registry — Phase 2; external pack source — Phase 4 | Одна schema/Registry; packs не создают второй тип персонажа |
+| Storage / Persistence | Storage backend + Storage Facade | NPC State, Dialogue History, six memory stores | Backend spike — Phase 0; Facade — Phase 1; staged data — Phases 2/5/6 | Единый backend/API и последовательные migrations |
+| Context Builder | Character Definition, Runtime/Relationship state, History; позже memory stores | Dialogue, Thinker | Minimal source set — Phase 5; source adapters — Phase 6/7 | Один Context Builder с расширяемым source registry; будущие источники помечаются NOT_YET_ENABLED, не выдают ложный пустой результат |
+| Dialogue presentation | Finalized dialogue events + optional validated emotion/speech-act metadata | Face Controller / Motion Engine | Face API — Phase 3; dialogue adapter — Phase 5 | Не активировать reaction до Phase 5; без metadata — neutral fallback |
+| Action Memory | Server-observed event feed | Thinker, Summarizer, Context Builder | Storage contract — Phase 6; basic producer — Phase 7; full event/outcome producers — Phase 8 | Producer вводится не позже consumer; Phase 7/8 расширяют один feed/store |
+| Thoughts ↔ Memorizer | Thinker пишет Thoughts; Memorizer читает Thoughts | Memory pipeline / Judge / Context | Schema — Phase 6; writer+reader — jointly Phase 7 | Взаимозависимые worker contracts и acceptance в одной фазе |
+| Diary ↔ Judge ↔ Thinker | Memorizer candidates → Judge-approved Diary; Thinker reads Diary | Context Builder / Thinker | Stores — Phase 6; all writers/readers — jointly Phase 7 | Judge и Thinker не объявляются независимо complete |
+| Daily Summary ↔ Thinker | Finalized messages + event feed; Summarizer writes summary; Thinker reads it | Thinker / Context Builder | Messages — Phase 5; store — Phase 6; event/summary integration — Phase 7 | Summarizer and Thinker acceptance in same Phase 7 cycle |
+| Goal proposals | Thinker validated proposal | Goal Scheduler | Proposal inbox producer — Phase 7; consumer/activation — Phase 8 | Durable pending inbox bridges phases; no world side effect until Phase 8 |
+| Bot / Action Runtime | Goal Scheduler, action registry/validator, executor, navigation, Motion Engine | Bot plans and execution | Schema — Phase 7; full implementation — jointly Phase 8 | Bot is fifth gnome; implement simultaneously with Goal/Action/Navigation stack |
+| World Observer | Runtime/server events and actual action outcomes | Action Memory, Thinker, Goal Scheduler | Basic Event Feed — Phase 7; full Observer — Phase 8 | Minimal producer is available before Thinker; full observer expands in Phase 8 |
+| Navigation ↔ gait | Path/target/velocity and locomotion outcomes | Motion Engine locomotion | Synthetic root/velocity test — Phase 3; real world navigation bridge — Phase 8 | Gait tested earlier; actual path-following only in joint Phase 8 |
+| TTS ↔ face ↔ audio | Finalized dialogue, TTS, playback clock, viseme timing | Face Controller and client audio | Face API — Phase 3; provider foundation — Phase 5; end-to-end — Phase 9 | Audio generation, playback synchronization and lip-sync accepted together |
+| Optional addon API | Stable Action/Goal/Event extension points | External addon modules | Internal modularity — Phase 1; semantic API design — Phase 8; freeze — Phase 10; addon use — Phase 11 | Do not freeze public extension API before real Action/Goal/Event contracts exist |
+
+### 0.11 Правило контрактов, реализации и активации
+
+Для любой функции отдельно фиксируются три состояния:
+
+1. **Contract ready:** описаны интерфейс, schema, ownership, scope, threading, errors and compatibility. Это позволяет проектировать зависимые компоненты, но не выдаёт заглушку за рабочую функцию.
+2. **Implementation ready:** producer и consumer существуют, но могут ещё не быть соединены в end-to-end workflow.
+3. **Runtime integrated / Verified:** вся цепочка соединена, включена, передаёт/сохраняет состояние и прошла user-path/failure tests.
+
+Если обязательный producer/consumer появляется только в более поздней фазе, ранняя функция может оставить durable pending item/outbox с TTL, scope и idempotency (например, Goal Proposal Inbox Phase 7), работать явно в reduced mode с состоянием NOT_YET_ENABLED (например, Context Builder Phase 5) или оставаться disabled до совместной фазы. Нельзя silently подменять отсутствующий источник пустым успешным ответом, имитировать AI/мир тестовыми данными в production или заявлять функцию законченной.
+
+Если два компонента имеют взаимный runtime цикл, они проектируются заранее, но принимаются только как совместная вертикальная реализация в одной фазе. В Agnor это обязательно для:
+- четырёх когнитивных гномиков + Scheduler + Event Feed в Phase 7;
+- Bot + Goal Scheduler + full World Observer + Action Validator/Executor + Navigation + Motion bridge в Phase 8;
+- TTS generation + audio playback timing + viseme/lip-sync в Phase 9.
+
+Unit/contract tests отдельных компонентов полезны, но не заменяют совместный end-to-end acceptance.
+
+### 0.12 Принципиальная граница: исполнитель движения не является мозгом персонажа
 
 Agnor Motion Engine отвечает за то, как выполнить уже принятое намерение. Он не определяет самостоятельно, что персонаж хочет, почему он это хочет и какую эмоцию должен испытывать. Источники намерений подключаются поэтапно:
 
