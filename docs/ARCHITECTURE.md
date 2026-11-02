@@ -123,6 +123,8 @@ Minecraft (Fabric 1.21.1)
 
 NPC server runtime не зависит от клиентского renderer. В Фазе 2 сервер создаёт и сохраняет Character Runtime по UUID даже если модельный runtime ещё не подключён; model/asset references остаются данными Character Definition. Клиенты получают безопасный placeholder state `PRESENTATION_NOT_READY`. В Фазе 3 Character Presentation Adapter привязывает renderer/rig/pose controller к уже существующему NPC UUID и snapshots. Он не создаёт второй NPC identity/lifecycle и не является prerequisite для server activation. Если клиент не имеет подходящего ассета или renderer capability, placeholder сохраняется, а NPC logic продолжает работать.
 
+Memory/task scope, создаваемые вместе с NPC в Phase 2, — это только стабильные ownership keys и namespace identifiers. Они не означают, что database stores, Gnome Task Scheduler queues или workers уже существуют. Repositories подключаются в Phase 6; фоновые consumers — в Phase 7/8. NPC lifecycle hooks могут публиковать типизированные domain events через общий mod event boundary, но их AI/event-memory consumers активируются позднее.
+
 ## 5. Система памяти
 
 Все хранилища должны иметь явную область принадлежности. Минимальные измерения: world UUID, NPC UUID, player UUID (nullable для общих данных), время, тип записи и источник.
@@ -148,6 +150,8 @@ Player identity должна основываться на UUID, а ник ис�
 
 **Поэтапное подключение источников:** Context Builder — один сервис, создаваемый вместе с диалогом в Фазе 5. Сначала он использует Character Definition/system policy, Runtime/Relationship snapshot и Conversation History. В Фазе 6 он подключает Lorebook, Diary, Action Memory, Thoughts и Daily Summary через расширяемый Context Source Registry. Для источника различаются состояния `NOT_YET_ENABLED`, `AVAILABLE_EMPTY`, `AVAILABLE_WITH_DATA`, `TEMPORARILY_UNAVAILABLE` и `FORBIDDEN`; отсутствие ещё не реализованного хранилища нельзя выдавать модели за отсутствие воспоминаний.
 
+**Durable handoff к гномикам:** каждая durable Conversation History write для accepted inbound message и finalized assistant response атомарно создаёт outbox event с message ID, scope, direction/status, sequence и correlation ID. В Phase 5 gnome consumers disabled; records остаются pending. В Phase 7 Gnome Task Scheduler claims/replays их идемпотентно с watermark. Streaming partial не создаёт memory event. Так диалоговая функция не зависит от ещё не созданных worker queues и не теряет события между фазами.
+
 Context Builder использует consumer-specific Context Profiles (например, `dialogue` и `thinker`) с отдельными source allowlists, scope, freshness, priority и token budgets. Это один механизм сборки, а не один и тот же prompt для всех задач. Gnome Input Assemblers могут повторно использовать source registry, но их allowlists жёстко ограничены контрактом: Memorizer читает только History + Thoughts, Judge — candidate и scoped Diary retrieval. Они не получают полный диалоговый context.
 
 ### Лорбук
@@ -170,7 +174,7 @@ Judge получает кандидата и найденные существу
 
 Запускается по интервалу (целевой default — 30 секунд) и по важным внешним событиям. Его результат — компактное структурированное состояние и планы. Не сохранять и не запрашивать дословную скрытую цепочку рассуждений модели. Хранить проверяемые выводы, цели, эмоции и обоснования в краткой форме.
 
-Thinker не может полноценно потреблять Action Memory раньше, чем существует producer событий. Поэтому в Фазе 7 вместе с когнитивными гномиками включается минимальный server-side Event Feed Foundation, наполняющий Action Memory релевантными событиями игроков/NPC. Полный World Observer и записи фактических outcomes от автономных действий расширяются в Фазе 8 вместе с Action Runtime.
+Thinker не может полноценно потреблять Action Memory раньше, чем существует producer событий. Поэтому в Фазе 7 вместе с когнитивными гномиками включается минимальный server-side Event Feed Foundation, наполняющий Action Memory релевантными событиями игроков/NPC и replay-ящий Phase 5 dialogue outbox. Полный World Observer и записи фактических outcomes от автономных действий расширяются в Фазе 8 вместе с Action Runtime.
 
 ### Summarizer
 
