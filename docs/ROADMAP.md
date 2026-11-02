@@ -133,6 +133,7 @@
 - Единственный Context Builder с начальными источниками: Character Definition/system policy, Relationship/Runtime snapshot и durable Conversation History. Lorebook/Diary/Action Memory/Thoughts/Summary пока не активированы.
 - Расширяемый Context Source Registry: Фаза 6 подключает memory stores через адаптеры к этому же сборщику контекста.
 - Контекст каждой секции отличает NOT_YET_ENABLED от доступного, но пустого источника; отсутствие будущего store не маскируется под успешный пустой retrieval.
+- Context Builder поддерживает отдельные dialogue/thinker profiles с собственными allowlists, scope, freshness и token budgets; это один engine, не отдельные копии сборщика контекста.
 - Dialogue Presentation Adapter: реальные реакции на собеседника — поворот/взгляд на говорящего, listening/thinking/speaking states, ограниченные conversational expressions и простые жесты через Motion Engine.
 - Передавать в Face/Body Controller только валидированные semantic states/expressions, а не сырые LLM-команды на кости/morph weights; при отсутствии metadata использовать нейтральную реакцию.
 - Системные промты и роли сообщений.
@@ -161,7 +162,7 @@
 
 Задачи:
 - Реализовать ограниченный World Event Feed Foundation, который собирает server-side события, необходимые Thinker и Action Memory: dialogue lifecycle, вход/выход/приближение игрока, существенные наблюдаемые взаимодействия и важные изменения NPC. Это источник данных, не полный автономный Observer и не action executor.
-- Реализовать Gnome Scheduler: bounded queues, приоритеты, per-gnome/per-provider limits, deduplication, cancellation, retry/backoff, checkpoint и metrics.
+- Реализовать Gnome Task Scheduler: bounded queues, приоритеты, per-gnome/per-provider limits, deduplication, cancellation, retry/backoff, checkpoint и metrics. Это очередь фоновых AI jobs; Goal Scheduler игровых целей появляется в Фазе 8 и является отдельной системой.
 - Совместно подключить Memorizer (History + Thoughts) и Thinker (создаёт/обновляет Thoughts); ThoughtChanged, watermark и защита от stale results проверяются как одна связка.
 - Подключить Judge к candidate pipeline и Diary; Thinker использует Diary только после того, как candidate → Judge → transactional Diary write реально подключены.
 - Подключить Summarizer к finalized Conversation History и доступным Event Feed/Action Memory событиям; Thinker получает Summary через тот же Context Builder.
@@ -178,7 +179,7 @@
 Задачи:
 - Расширить Event Feed Фазы 7 до полного World Observer: event catalogue, actor/target/outcome/location/time/visibility, relevance, durability, deduplication и coalescing.
 - Реализовать Goal Scheduler, который забирает pending proposals из Goal Proposal Inbox, проверяет expiry, evidence, preconditions, priority, dependencies и правила прерывания.
-- Реализовать Bot как пятого гномика: преобразование выбранной цели в typed action plan.
+- Реализовать Bot как пятого гномика: преобразование выбранной цели в typed action plan; его асинхронный inference dispatch использует Gnome Task Scheduler, а игровые цели и actions — отдельный Goal Scheduler/Action Runtime.
 - Подключить отдельный Bot provider preset/capability validation, если Bot использует LLM для планирования; исполнение validated plan не вызывает модель на каждом игровом тике.
 - Одновременно реализовать Action Registry, Action Validator и Action Executor: whitelist, schema, permissions, distance/range, cooldown, world preconditions, idempotency, cancellation и uncertain-result reconciliation.
 - Реализовать Navigation/Follow: pathfinding, moving target, repath, stuck detection, obstacles, unloaded chunks, stop/cancel и arrival predicate.
