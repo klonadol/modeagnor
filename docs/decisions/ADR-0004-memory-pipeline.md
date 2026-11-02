@@ -45,6 +45,23 @@ Thinker goal proposals в Фазе 7 сохраняются в durable Goal Prop
 
 Gnome Task Scheduler и Goal Scheduler — разные компоненты. Первый управляет фоновыми worker jobs гномиков; второй управляет игровыми целями NPC и появляется в Фазе 8. Между ними не используется общая незащищённая in-memory очередь: handoff выполняется через durable proposal record.
 
+## Каноническая единица message count и consumer trigger policy
+
+Для Conversation History одна durable message record считается одним сообщением:
+- accepted inbound player message = 1;
+- finalized assistant response = 1;
+- streaming partial chunks, system prompt entries, transport retries и uncommitted interrupted partials = 0.
+
+Default Summary threshold — каждые 10 committed message records. Threshold определяется по monotonic message sequence/watermark, не по client timestamp; предыдущая сводка фиксирует точный source range. Повторный replay не увеличивает count второй раз.
+
+Phase 7 Gnome Task Scheduler применяет разные trigger policies:
+- Memorizer coalesces contiguous unprocessed finalized History ranges (History + Thoughts only) в scoped task.
+- Summarizer учитывает каждый committed History record, но создаёт summary task только при достижении threshold; previous summary и watermark фиксируют диапазон.
+- Thinker запускается по `ConversationTurnFinalized` (после финального ответа NPC), значимым world/NPC events и периодическому интервалу около 30 секунд. Частые события coalesce-ятся до одной pending task на NPC/scope; streaming chunk не вызывает Thinker.
+- Judge получает только validated candidate records от Memorizer, не raw message outbox events.
+
+Outbox delivery для каждого consumer может стать ENQUEUED/acknowledged только атомарно с durable Gnome Task creation/update либо с durable aggregation/watermark update. Worker execution имеет собственный task status/retry; ack доставки не означает успешного завершения LLM задачи.
+
 ## Доступность семантического поиска по фазам
 
 Lorebook и Diary schema могут быть созданы в Фазе 6; Always/exact/keyword retrieval доступен тогда же. Semantic-only retrieval не считается готовым до Embedding adapter Фазы 7. До этого такие записи имеют явное состояние NOT_YET_ENABLED либо применяют явно настроенный fallback; отсутствие embedding не должно выглядеть как успешный пустой semantic result.
