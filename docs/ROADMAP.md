@@ -76,6 +76,7 @@
 - Сохранение мира/NPC/игрока через общий Storage Facade.
 - Базовая Character Definition schema и Registry со встроенным/dev definition source для первой NPC; внешний Content Pack Loader в Фазе 4 подключается к тому же Registry, без второй схемы персонажей.
 - Memory/task scope на этой фазе — только стабильные ownership IDs; не создавать заранее memory repositories, Gnome Task Scheduler queues или AI workers, которые появятся в Фазах 6–8.
+- Memory/task scope на этой фазе — только стабильные ownership IDs; не создавать заранее memory repositories, Gnome Task Scheduler queues или AI workers, которые появятся в Фазах 6–8.
 - Создание/активация NPC на сервере не зависит от renderer или готовности клиентской модели: в Phase 2 сохраняются model/asset references, а клиенты показывают временный placeholder `PRESENTATION_NOT_READY` до подключения renderer в Phase 3.
 - Минимальный тест двух игроков и одной NPC.
 
@@ -136,6 +137,7 @@
 - Единственный Context Builder с начальными источниками: Character Definition/system policy, Relationship/Runtime snapshot и durable Conversation History. Lorebook/Diary/Action Memory/Thoughts/Summary пока не активированы.
 - Расширяемый Context Source Registry: Фаза 6 подключает memory stores через адаптеры к этому же сборщику контекста.
 - Контекст каждой секции отличает NOT_YET_ENABLED от доступного, но пустого источника; отсутствие будущего store не маскируется под успешный пустой retrieval.
+- Каждая durable write в Conversation History (accepted inbound message и finalized assistant response; streaming partial не включается) атомарно создаёт downstream event outbox record с message ID/range, scope, direction/status и sequence. Пока gnome consumers не активированы, records остаются pending; Phase 7 replay-ит их без потери/повторов.
 - Finalized message/response commit атомарно записывает downstream event records в durable outbox (message range, scope, event type, correlation ID). Consumers гномиков до Фазы 7 disabled; outbox не пытается отправить сигнал в ещё не существующую очередь.
 - Context Builder поддерживает отдельные dialogue/thinker profiles с собственными allowlists, scope, freshness и token budgets; это один engine, не отдельные копии сборщика контекста.
 - Dialogue Presentation Adapter: реальные реакции на собеседника — поворот/взгляд на говорящего, listening/thinking/speaking states, ограниченные conversational expressions и простые жесты через Motion Engine.
@@ -166,6 +168,7 @@
 
 Задачи:
 - Реализовать ограниченный World Event Feed Foundation, который собирает server-side события, необходимые Thinker и Action Memory: dialogue lifecycle, вход/выход/приближение игрока, существенные наблюдаемые взаимодействия и важные изменения NPC. Это источник данных, не полный автономный Observer и не action executor.
+- Подключить Phase 5 dialogue outbox и Phase 2 NPC lifecycle hooks: workers claim/replay pending records, используют message/event IDs, idempotency и watermark; события, накопленные до активации гномиков, не теряются и не обрабатываются повторно.
 - Подключить и replay накопившиеся transactional dialogue outbox records из Фазы 5; consumer claim, idempotency и watermark commit защищают от потери и повторной обработки после restart.
 - Реализовать Gnome Task Scheduler: bounded queues, приоритеты, per-gnome/per-provider limits, deduplication, cancellation, retry/backoff, checkpoint и metrics. Это очередь фоновых AI jobs; Goal Scheduler игровых целей появляется в Фазе 8 и является отдельной системой.
 - Совместно подключить Memorizer (History + Thoughts) и Thinker (создаёт/обновляет Thoughts); ThoughtChanged, watermark и защита от stale results проверяются как одна связка.
