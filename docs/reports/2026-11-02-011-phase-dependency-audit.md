@@ -114,6 +114,14 @@ Unit/contract tests компонентов остаются отдельными
 - Semantic-only retrieval остаётся явно NOT_YET_ENABLED до Embedding adapter Phase 7.
 - Отсутствие embedding не выдаётся за корректную пустую семантическую выдачу.
 
+### 3.10 Версии Content Pack и Addon API
+
+- Phase 4 использует собственную declarative Content Pack schema/API compatibility version.
+- Эта версия не является executable Addon API version.
+- Внутренние модульные границы допустимы с Phase 1.
+- Публичная семантика Action/Goal/Event API определяется после рабочего runtime Phase 8 и замораживается после compatibility hardening Phase 10.
+- Addon implementation остаётся в Phase 11.
+
 ### 3.11 Server Character Runtime до renderer
 
 - Phase 2 создаёт NPC UUID, Character Definition, Runtime/Relationship state и persistence на сервере; renderer, rig и клиентский model file не являются prerequisites для server activation.
@@ -131,23 +139,8 @@ Unit/contract tests компонентов остаются отдельными
 - Каждая durable Conversation History write для accepted inbound message и finalized assistant response атомарно создаёт outbox event; streaming partial не является memory event.
 - Каждая доставка хранит независимое состояние для пары event ID + consumer ID: pending/claimed/completed/failed, lease/attempt, idempotency key и собственный watermark.
 - Memorizer, Summarizer и Thinker независимо claim/replay-ят свои deliveries. Подтверждение одним consumer не подтверждает событие за другими; Judge получает candidates от Memorizer, не raw dialogue events.
-- Outbox будит/доставляет consumer jobs, но не копирует текст реплик в Action Memory. Conversation History хранит сообщения; Action Memory получает только typed world/action events от World Event Feed.
+- Outbox доставляет consumer jobs, но не копирует текст реплик в Action Memory. Conversation History хранит сообщения; Action Memory получает только typed world/action events от World Event Feed.
 - Phase 5 сохраняет events pending; Phase 7 регистрирует consumers и безопасно replay-ит накопившиеся records.
-
-### 3.10 Версии Content Pack и Addon API
-
-- Phase 4 использует собственную declarative Content Pack schema/API compatibility version.
-- Эта версия не является executable Addon API version.
-- Внутренние модульные границы допустимы с Phase 1.
-- Публичная семантика Action/Goal/Event API определяется после рабочего runtime Phase 8 и замораживается после compatibility hardening Phase 10.
-- Addon implementation остаётся в Phase 11.
-
-### 3.11 Server Character Runtime до renderer
-
-- Phase 2 создаёт NPC UUID, Character Definition, Runtime/Relationship state и persistence на сервере; наличие renderer, rig или локального model file не является prerequisite для server activation.
-- Если визуальный слой ещё не готов, server spawn snapshot обозначает presentation status `PRESENTATION_NOT_READY`, а клиенты показывают placeholder.
-- Phase 3 добавляет Character Presentation Adapter, который подключает renderer/rig/pose controller к уже существующему NPC UUID и server presentation snapshots. Он не создаёт вторую entity identity/lifecycle и не требует переписывать Character Runtime.
-- Для Phase 2 это явное ограничение: NPC logical/runtime lifecycle проверяется с placeholder; полноценная модель и визуальное управление принимаются в Phase 3.
 
 ## 4. Группы обязательной совместной реализации
 
@@ -156,6 +149,7 @@ Unit/contract tests компонентов остаются отдельными
 | 7 | Event Feed Foundation + Gnome Task Scheduler + Memorizer + Judge + Thinker + Summarizer + Affective Mapper | Взаимные чтение/запись Thoughts, Diary, Summary и Action Memory образуют единый cognition/memory cycle |
 | 8 | Full World Observer + Goal Scheduler + Bot + Action Registry/Validator/Executor + Navigation + Motion Engine bridge | Замкнутый цикл от намерения до действия и фактического результата |
 | 9 | TTS generation + audio task/queue + playback clock/transport + viseme timeline + Face Controller | Lip-sync нельзя подтвердить без синхронного end-to-end audio playback |
+| 5 → 7 | Transactional Conversation History outbox — per-consumer replay | Phase 5 сохраняет события до готовности gnomes; Phase 7 включает workers | Message events не теряются между фазами; каждый consumer имеет отдельный delivery state и watermark |
 | 2 → 3 | Server Character Runtime + client placeholder (Phase 2), затем Character Presentation Adapter + renderer binding (Phase 3) | NPC server identity/persistence должна работать до renderer; adapter привязывает визуальный слой к тому же UUID, а не создаёт второй NPC |
 
 ## 5. Правило готовности
@@ -173,9 +167,9 @@ Unit/contract tests компонентов остаются отдельными
 |---|---|
 | docs/IMPLEMENTATION_BLUEPRINT.md | Добавлена dependency matrix 0.10, правило готовности 0.11, GAP-15…GAP-25; последние уточняют renderer staging, scope keys и transactional per-consumer dialogue event delivery, unified registry/storage/context staging, co-implementation Phase 7/8/9, goal outbox, scheduler distinction, embedding and API version staging |
 | docs/ROADMAP.md | Фазы 1/2/3/4/5/6/7/8/11 уточнены по producer/consumer dependency; четыре cognitive gnomes в Phase 7; Bot/full autonomy в Phase 8 |
-| docs/ARCHITECTURE.md | Добавлены Character Definition Registry staging, Context Profiles, Event Feed dependency, distinction of schedulers и общий dependency policy |
+| docs/ARCHITECTURE.md | Добавлены Character Definition Registry staging, server NPC/renderer decoupling, Context Profiles, Phase 5 dialogue outbox with per-consumer delivery, Event Feed dependency, scope-key staging и distinction of schedulers |
 | docs/decisions/ADR-0003-content-packs.md | Разделены Content Pack schema version и executable Addon API version |
-| docs/decisions/ADR-0004-memory-pipeline.md | Зафиксированы совместная активация memory/gnome cycle, Event Feed, Goal Proposal Outbox и scheduler distinction |
+| docs/decisions/ADR-0004-memory-pipeline.md | Зафиксированы совместная активация memory/gnome cycle, Event Feed, per-consumer dialogue outbox delivery, Goal Proposal Outbox и scheduler distinction |
 | docs/decisions/ADR-0005-optional-integrations.md | Публичный Addon API стабилизируется после Phase 8 и freeze Phase 10; addons в Phase 11 |
 | docs/INDEX.md | Назначение Blueprint уточнено как карта producer/consumer и co-implementation dependencies |
 | docs/reports/2026-11-02-011-phase-dependency-audit.md | Этот отчёт |
@@ -190,6 +184,7 @@ Unit/contract tests компонентов остаются отдельными
 | Fetch current ROADMAP/Blueprint/Architecture/ADRs | PASS | Изучены изменённые документы и текущие контракты |
 | Dependency mapping | PASS (documentation) | Для основных producer/consumer chains определены фазы и стадии активации |
 | Joint implementation groups | PASS (documentation) | Явно назначены совместные Phase 7/8/9 vertical integrations |
+| Cross-phase durable event delivery | PASS (documentation) | Phase 5 outbox is durable; Phase 7 consumers claim/replay independently per event_id + consumer_id; dialogue messages remain in History, not Action Memory |
 | Cross-document consistency | PASS (documentation) | Финально перечитаны Blueprint, Roadmap, Architecture, ADR-0003/0004/0005, Index, report и journal; Phase 2 placeholder ↔ Phase 3 adapter, Phase 5 outbox ↔ Phase 7 consumers и per-consumer delivery state согласованы |
 | Runtime implementation/tests | НЕ ПРОВЕРЕНО | Изменения только документационные; код проекта не реализован |
 
