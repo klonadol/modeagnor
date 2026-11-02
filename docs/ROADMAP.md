@@ -110,7 +110,7 @@
 
 ### Фаза 4. Content Packs
 Задачи:
-- Манифест и схема пакета.
+- Манифест и schema version для декларативных Content Packs; этот schema/API version не смешивать с публичным executable Addon API, который стабилизируется после Фазы 8 и замораживается в Фазе 10.
 - Сканирование, проверка, включение и отключение.
 - Внешние модели, текстуры, анимации и определения персонажей.
 - Metadata происхождения, автора, лицензии и разрешений для каждого ассета.
@@ -151,6 +151,7 @@
 - Схема SQLite/JSON, миграции, резервные копии.
 - Изоляция world/NPC/player.
 - Индексация и правила retention.
+- Exact/keyword/Always Lorebook activation работает в этой фазе; semantic-only retrieval помечается NOT_YET_ENABLED до Embedding adapter Фазы 7, чтобы не выдавать отсутствие провайдера за пустую выдачу.
 - Все хранилища используют единый Storage Facade и backend из Фазы 0/1; Conversation History расширяется, а не переносится во вторую БД.
 - Подготовить Action Memory и Thoughts schema/API, но не считать их end-to-end функциями до подключения источников и потребителей в Фазе 7.
 
@@ -164,7 +165,7 @@
 - Совместно подключить Memorizer (History + Thoughts) и Thinker (создаёт/обновляет Thoughts); ThoughtChanged, watermark и защита от stale results проверяются как одна связка.
 - Подключить Judge к candidate pipeline и Diary; Thinker использует Diary только после того, как candidate → Judge → transactional Diary write реально подключены.
 - Подключить Summarizer к finalized Conversation History и доступным Event Feed/Action Memory событиям; Thinker получает Summary через тот же Context Builder.
-- Embedding adapter/profile и отдельные provider presets для каждого гномика.
+- Embedding adapter/profile и независимые provider presets активируемых когнитивных гномиков: Memorizer, Judge, Thinker, Summarizer. Bot-specific provider preset подключается вместе с самим Bot в Фазе 8.
 - Affective Presentation Mapper: валидированные emotion/intensity/attention/desire состояния Thinker передаются в Face/Body Controller с smoothing, expiry и fallback; не давать LLM управление костями.
 - Goal proposals Thinker сохраняются в durable Goal Proposal Inbox с ID/scope/evidence/expiry/status=PENDING. В этой фазе они не исполняются и не меняют игровой мир.
 - Ручной запуск/отладка из меню: permission check, preview/dry-run, status, cancel/retry и безопасная диагностика.
@@ -178,6 +179,7 @@
 - Расширить Event Feed Фазы 7 до полного World Observer: event catalogue, actor/target/outcome/location/time/visibility, relevance, durability, deduplication и coalescing.
 - Реализовать Goal Scheduler, который забирает pending proposals из Goal Proposal Inbox, проверяет expiry, evidence, preconditions, priority, dependencies и правила прерывания.
 - Реализовать Bot как пятого гномика: преобразование выбранной цели в typed action plan.
+- Подключить отдельный Bot provider preset/capability validation, если Bot использует LLM для планирования; исполнение validated plan не вызывает модель на каждом игровом тике.
 - Одновременно реализовать Action Registry, Action Validator и Action Executor: whitelist, schema, permissions, distance/range, cooldown, world preconditions, idempotency, cancellation и uncertain-result reconciliation.
 - Реализовать Navigation/Follow: pathfinding, moving target, repath, stuck detection, obstacles, unloaded chunks, stop/cancel и arrival predicate.
 - Подключить Navigation root movement/velocity к Motion Engine; заменить synthetic inputs Фазы 3 на реальные path/target/action inputs.
