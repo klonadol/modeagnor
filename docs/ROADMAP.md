@@ -161,6 +161,8 @@
 - Exact/keyword/Always Lorebook activation работает в этой фазе; semantic-only retrieval помечается NOT_YET_ENABLED до Embedding adapter Фазы 7, чтобы не выдавать отсутствие провайдера за пустую выдачу.
 - Все хранилища используют единый Storage Facade и backend из Фазы 0/1; Conversation History расширяется, а не переносится во вторую БД.
 - Подготовить Action Memory и Thoughts schema/API, но не считать их end-to-end функциями до подключения источников и потребителей в Фазе 7.
+- Зафиксировать единицу message count для History и Summarizer: одна durable History record — одно сообщение; accepted inbound player message и finalized assistant reply считаются отдельно. Streaming partial, system prompt, retries и uncommitted interrupted partial не считаются. Default summary threshold — 10 committed records; точный диапазон определяется sequence/watermark.
+- Точное определение периода Daily Summary (Minecraft day или calendar/server-local day) закрыть до реализации Summarizer в Фазе 7.
 
 Критерий выхода: записи не смешиваются между NPC, игроками и мирами; все хранилища восстанавливаются после перезапуска; история соблюдает настраиваемый лимит.
 
@@ -169,6 +171,7 @@
 Задачи:
 - Реализовать ограниченный World Event Feed Foundation, который собирает server-side world/NPC события для Thinker и Action Memory: NPC lifecycle hooks, вход/выход/приближение игрока, существенные наблюдаемые взаимодействия и важные изменения NPC. При включении feed строит baseline snapshot текущего состояния; события до его активации не реконструируются задним числом. После активации он пишет typed world/action events; содержимое диалоговых сообщений остаётся в Conversation History и не копируется в Action Memory. Это не полный автономный Observer и не action executor.
 - Подключить и replay накопившиеся Phase 5 dialogue outbox records: каждая delivery обрабатывается отдельно по event ID + consumer ID, с собственным claim/lease, idempotency и watermark commit. Завершение одного consumer не закрывает delivery остальных; restart не теряет и не дублирует обработку.
+- Применять consumer-specific trigger policy: Memorizer batch-ит новые finalized History ranges; Summarizer учитывает каждый committed message record и создаёт задачу только при переходе watermark через threshold 10; Thinker запускается по ConversationTurnFinalized, значимым world/NPC events и периодическому интервалу около 30 секунд, объединяя частые triggers в одну pending task. Consumer delivery ack допускается только вместе с durable task/aggregation update.
 - Реализовать Gnome Task Scheduler: bounded queues, приоритеты, per-gnome/per-provider limits, deduplication, cancellation, retry/backoff, checkpoint и metrics. Это очередь фоновых AI jobs; Goal Scheduler игровых целей появляется в Фазе 8 и является отдельной системой.
 - Совместно подключить Memorizer (History + Thoughts) и Thinker (создаёт/обновляет Thoughts); ThoughtChanged, watermark и защита от stale results проверяются как одна связка.
 - Подключить Judge к candidate pipeline и Diary; Thinker использует Diary только после того, как candidate → Judge → transactional Diary write реально подключены.
