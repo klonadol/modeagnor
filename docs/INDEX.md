@@ -10,6 +10,7 @@
 | Компоненты, границы модулей, потоки данных | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Этапы, зависимости, критерии завершения | [ROADMAP.md](ROADMAP.md) |
 | Принятые технические решения | [DECISIONS.md](DECISIONS.md) и [decisions/](decisions/) |
+| Требования к качеству моделей и физике | [ADR-0006](decisions/ADR-0006-character-visual-quality-and-physics.md) |
 | Отчёт о конкретной выполненной задаче | [reports/](reports/) |
 | Хронология всех работ | [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md) |
 | Шаблон отчёта о работе | [DEVELOPMENT_REPORT_TEMPLATE.md](templates/DEVELOPMENT_REPORT_TEMPLATE.md) |
