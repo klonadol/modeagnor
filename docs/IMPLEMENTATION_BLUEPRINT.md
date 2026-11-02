@@ -130,7 +130,7 @@
 6. Settings UI: pending → server response → persisted result; ошибки и permission denial отображаются по серверному ответу.
 7. Safe logging/diagnostics: correlation IDs, redaction, уровни логирования, opt-in для чувствительной диагностики.
 8. Threading contract: server thread только для bounded state/world changes; background executors и возврат результата через server scheduler.
-9. Storage Facade foundation: единый интерфейс транзакций, schema versioning, scope enforcement, world-scoped repositories and migrations. Backend выбирается в Phase 0; этот же сервис расширяется в фазах 2, 5 и 6, без отдельной базы на каждую функцию.
+9. Storage Facade foundation: единый интерфейс транзакций, schema versioning, scope enforcement, world-scoped repositories, migrations и durable outbox/task records. Backend выбирается в Phase 0; этот же сервис расширяется в фазах 2, 5, 6 и 7, без отдельной базы на каждую функцию.
 
 **Артефакты:** lifecycle diagram, config schema, каталог путей, packet contract, минимальная permission matrix, UI request state machine, logging/redaction rules.
 
@@ -243,7 +243,7 @@
 6. Подключить независимые provider presets для активируемых в этой фазе когнитивных гномиков (Memorizer, Judge, Thinker, Summarizer) и Embedding adapter/profile (model/index version, reindex, fallback). Bot-specific preset/capability вводится вместе с runtime Bot в Phase 8.
 7. Подключить Affective/Presentation Mapper: validated Thinker outputs (emotion/intensity/attention/desire) переводятся в разрешённые face/body intents с smoothing, hysteresis, expiry и rig-capability fallback.
 8. Разделить cognitive goal proposals и presentation state: Thinker может сохранять желания/цели независимо от эмоций и не выдаёт world actions напрямую.
-9. Ввести durable **Goal Proposal Inbox/Outbox**: Thinker сохраняет proposals с ID, scope, evidence, priority hint, expiry и status=PENDING. В Phase 7 они валидируются по schema и сохраняются; активировать игровые действия до Goal Scheduler Phase 8 запрещено.
+9. Ввести durable **Goal Proposal Inbox/Outbox** через Storage Facade: Thinker сохраняет proposals с ID, scope, evidence, priority hint, expiry и status=PENDING; запись атомарно связана с Thought/evidence references. Это outbox/task record, а не седьмое хранилище памяти. В Phase 7 proposals только валидируются и сохраняются; активировать игровые действия до Goal Scheduler Phase 8 запрещено. Phase 8 atomically claims proposals, проверяет актуальность и отмечает accepted/expired/rejected, не исполняя один proposal повторно.
 10. Реализовать manual run/debug UI с permission check, dry-run/preview, task status, cancel/retry policy и sanitized diagnostics; ручной запуск не обходит validators.
 11. **Bot в Phase 7 — только contract/schema design.** Пятый гномик не объявляется реализованным и не запускается до совместной Фазы 8 с Goal Scheduler/Action Executor/Navigation.
 
@@ -377,7 +377,7 @@
 | Thoughts ↔ Memorizer | Thinker пишет Thoughts; Memorizer читает Thoughts | Memory pipeline / Judge / Context | Schema — Phase 6; writer+reader — jointly Phase 7 | Взаимозависимые worker contracts и acceptance в одной фазе |
 | Diary ↔ Judge ↔ Thinker | Memorizer candidates → Judge-approved Diary; Thinker reads Diary | Context Builder / Thinker | Stores — Phase 6; all writers/readers — jointly Phase 7 | Judge и Thinker не объявляются независимо complete |
 | Daily Summary ↔ Thinker | Finalized messages + event feed; Summarizer writes summary; Thinker reads it | Thinker / Context Builder | Messages — Phase 5; store — Phase 6; event/summary integration — Phase 7 | Summarizer and Thinker acceptance in same Phase 7 cycle |
-| Goal proposals | Thinker validated proposal | Goal Scheduler | Proposal inbox producer — Phase 7; consumer/activation — Phase 8 | Durable pending inbox bridges phases; no world side effect until Phase 8 |
+| Goal proposals | Thinker validated proposal | Goal Scheduler | Proposal inbox/outbox via Storage Facade — Phase 7; consumer/activation — Phase 8 | Atomic durable pending records bridge phases; not a seventh memory store; no world side effect until Phase 8 |
 | Bot / Action Runtime | Goal Scheduler, action registry/validator, executor, navigation, Motion Engine | Bot plans and execution | Schema — Phase 7; full implementation — jointly Phase 8 | Bot is fifth gnome; implement simultaneously with Goal/Action/Navigation stack |
 | World Observer | Runtime/server events and actual action outcomes | Action Memory, Thinker, Goal Scheduler | Basic Event Feed — Phase 7; full Observer — Phase 8 | Minimal producer is available before Thinker; full observer expands in Phase 8 |
 | Navigation ↔ gait | Path/target/velocity and locomotion outcomes | Motion Engine locomotion | Synthetic root/velocity test — Phase 3; real world navigation bridge — Phase 8 | Gait tested earlier; actual path-following only in joint Phase 8 |
