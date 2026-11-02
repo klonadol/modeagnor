@@ -363,6 +363,7 @@
 | GAP-19 | Thinker goal proposals не имели потребителя до Phase 8 | Durable Goal Proposal Inbox с PENDING/TTL в Phase 7; Goal Scheduler активирует их в Phase 8 | 7–8 |
 | GAP-20 | Bot, Goal Scheduler, Action Executor, Navigation и Observer образуют цикл, но были описаны как отдельные задачи | Совместная вертикальная реализация Bot + Goal/Action/Navigation/Observer/Motion bridge в Phase 8 | 8 |
 | GAP-21 | Публичный Addon API планировался до стабилизации Action/Goal/Event contracts | Внутренняя модульность Phase 1; API design Phase 8; freeze Phase 10; addon Phase 11 | 8–11 |
+| GAP-22 | Character Runtime Phase 2 мог неявно требовать renderer, который продуктово подключается только в Phase 3 | Server NPC lifecycle/UUID/persistence не зависят от renderer; Phase 2 client placeholder, Phase 3 Character Presentation Adapter к тому же UUID | 2–3 |
 
 Этот реестр не означает, что соответствующие функции реализованы. Исправление состоит в том, что проектирование теперь привязано к нужной фазе и имеет проверяемый выход.
 
