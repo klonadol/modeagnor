@@ -168,7 +168,7 @@
 - Подключить Summarizer к finalized Conversation History и доступным Event Feed/Action Memory событиям; Thinker получает Summary через тот же Context Builder.
 - Embedding adapter/profile и независимые provider presets активируемых когнитивных гномиков: Memorizer, Judge, Thinker, Summarizer. Bot-specific provider preset подключается вместе с самим Bot в Фазе 8.
 - Affective Presentation Mapper: валидированные emotion/intensity/attention/desire состояния Thinker передаются в Face/Body Controller с smoothing, expiry и fallback; не давать LLM управление костями.
-- Goal proposals Thinker сохраняются в durable Goal Proposal Inbox с ID/scope/evidence/expiry/status=PENDING. В этой фазе они не исполняются и не меняют игровой мир.
+- Goal proposals Thinker сохраняются в durable Goal Proposal Inbox/Outbox через Storage Facade с ID/scope/evidence/expiry/status=PENDING; запись связана с Thought, это не седьмое хранилище памяти. В этой фазе они не исполняются и не меняют игровой мир; Phase 8 claims/validates их атомарно и не исполняет повторно.
 - Ручной запуск/отладка из меню: permission check, preview/dry-run, status, cancel/retry и безопасная диагностика.
 - Определить Bot typed plan/action-intent contract. Сам Bot как пятый работающий гномик переносится в совместную реализацию Фазы 8, когда готовы Goal Scheduler и Action Executor.
 
