@@ -166,7 +166,7 @@
 ### Фаза 7. Когнитивные гномики и планировщик
 
 Задачи:
-- Реализовать ограниченный World Event Feed Foundation, который собирает server-side события, необходимые Thinker и Action Memory: Phase 2 NPC lifecycle hooks, Phase 5 transactional Conversation History outbox, вход/выход/приближение игрока, существенные наблюдаемые взаимодействия и важные изменения NPC. Это источник данных, не полный автономный Observer и не action executor.
+- Реализовать ограниченный World Event Feed Foundation, который собирает server-side world/NPC события для Thinker и Action Memory: Phase 2 NPC lifecycle hooks, вход/выход/приближение игрока, существенные наблюдаемые взаимодействия и важные изменения NPC. Он пишет только typed world/action events; содержимое диалоговых сообщений остаётся в Conversation History и не копируется в Action Memory. Это не полный автономный Observer и не action executor.
 - Подключить и replay накопившиеся Phase 5 dialogue outbox records: каждая delivery обрабатывается отдельно по event ID + consumer ID, с собственным claim/lease, idempotency и watermark commit. Завершение одного consumer не закрывает delivery остальных; restart не теряет и не дублирует обработку.
 - Реализовать Gnome Task Scheduler: bounded queues, приоритеты, per-gnome/per-provider limits, deduplication, cancellation, retry/backoff, checkpoint и metrics. Это очередь фоновых AI jobs; Goal Scheduler игровых целей появляется в Фазе 8 и является отдельной системой.
 - Совместно подключить Memorizer (History + Thoughts) и Thinker (создаёт/обновляет Thoughts); ThoughtChanged, watermark и защита от stale results проверяются как одна связка.
