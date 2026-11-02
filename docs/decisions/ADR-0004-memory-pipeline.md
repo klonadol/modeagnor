@@ -27,6 +27,20 @@ NPC должен помнить диалоги, факты, действия и�
 - **Bot:** преобразует намерения в безопасные игровые действия и визуальные команды. Действия исполняются только через серверный валидатор и whitelist.
 - **Summarizer:** после каждых 10 сообщений обновляет сводку на основе предыдущей версии и новых данных. Нужен watermark, чтобы исключить повторную обработку.
 
+## Межфазные зависимости и совместная активация
+
+Схемы шести хранилищ могут быть подготовлены в Фазе 6, но store считается рабочей функцией только после подключения реального producer/consumer:
+- Action Memory: schema/API в Фазе 6; ограниченный Event Feed producer и первые записи для Thinker/Summarizer подключаются в Фазе 7; полный World Observer и фактические outcomes от Bot/Action Executor расширяют поток в Фазе 8.
+- Thoughts: schema/API в Фазе 6; writer Thinker и reader Memorizer запускаются совместно в Фазе 7.
+- Diary: Judge принимает Memorizer candidates и пишет записи, которые читает Thinker; candidate → Judge → Diary → Thinker является единым acceptance path Фазы 7.
+- Daily Summary: store создаётся в Фазе 6; Summarizer получает Conversation History из Фазы 5 и Event Feed Фазы 7; Thinker использует сохранённую Summary в рамках той же интеграции.
+
+Четыре когнитивных гномика (Memorizer, Judge, Thinker, Summarizer), Gnome Scheduler и Event Feed вводятся как одна вертикальная интеграция в Фазе 7. Их можно покрывать unit/contract тестами по отдельности, но ни один сервис не объявляется функционально завершённым без общего end-to-end цикла и проверок повторов, restart, watermark, scope и отказов.
+
+Bot остаётся пятым гномиком. В Фазе 7 фиксируется только его typed plan/action-intent contract; runtime Bot реализуется в Фазе 8 одновременно с Goal Scheduler, полным World Observer, Action Validator/Executor, Navigation и Motion Engine bridge.
+
+Thinker goal proposals в Фазе 7 сохраняются в durable Goal Proposal Inbox со scope, evidence, ID, expiry и pending status. До готовности Goal Scheduler Фазы 8 они не запускают игровые действия и не изменяют мир.
+
 ## Метаданные воспоминаний
 
 Кандидат должен содержать как минимум: `source`, `information_type`, `confidence`, `importance`, `created_at`, `world_id`, `npc_id` и при необходимости `player_id`.
