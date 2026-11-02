@@ -4,7 +4,7 @@
 - **Статус:** Done (documentation correction; runtime behavior not implemented/verified)
 - **Ветка:** main
 - **HEAD до работы:** 664daa94bdc57b2e19ddb7b25fda1396b5412466
-- **HEAD после работы:** будет указан после всех связанных записей
+- **HEAD после содержательных изменений:** 2a57f40da2b6975c92bf43e1eaf6c561198350bb (отчёт и журнал добавлены последующими commits)
 - **Связанные ADR:** ADR-0002, ADR-0004, ADR-0006, ADR-0007
 - **Связанные этапы:** Фазы 0, 3, 5, 7, 8, 9
 
