@@ -34,7 +34,7 @@
 - Face Controller и технические facial/expression channels;
 - secondary physics, pose replication и performance tests.
 
-Все тестовые движения и выражения подаются тестовым harness. На этой фазе нет dialogue-driven reactions, Thinker-driven emotional state, autonomous world navigation или работающего TTS lip-sync.
+Все тестовые движения и выражения подаются тестовым harness; procedural gait получает только synthetic velocity/root-motion input. На этой фазе нет dialogue-driven reactions, Thinker-driven emotional state, world pathfinding/follow, autonomous movement или работающего TTS lip-sync.
 
 ### Фаза 5
 Dialogue Presentation Adapter подключает первые реакции на собеседника:
