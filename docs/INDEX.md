@@ -8,7 +8,7 @@
 |---|---|
 | Общее описание проекта и ссылки | [Корневой README](../README.md) |
 | Компоненты, границы модулей, потоки данных | [ARCHITECTURE.md](ARCHITECTURE.md) |
-| Полная логика функций, связи, потоки, ошибки и recovery | [IMPLEMENTATION_BLUEPRINT.md](IMPLEMENTATION_BLUEPRINT.md) |
+| Полная логика функций, связи и отказные сценарии; фазовая последовательность проектирования 0–11 и сверка с ROADMAP | [IMPLEMENTATION_BLUEPRINT.md](IMPLEMENTATION_BLUEPRINT.md) |
 | Этапы, зависимости, критерии завершения | [ROADMAP.md](ROADMAP.md) |
 | Принятые технические решения | [DECISIONS.md](DECISIONS.md) и [decisions/](decisions/) |
 | Требования к качеству моделей и физике | [ADR-0006](decisions/ADR-0006-character-visual-quality-and-physics.md) |
