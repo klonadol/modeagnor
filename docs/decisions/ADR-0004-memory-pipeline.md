@@ -37,6 +37,8 @@ NPC должен помнить диалоги, факты, действия и�
 
 Четыре когнитивных гномика (Memorizer, Judge, Thinker, Summarizer), Gnome Scheduler и Event Feed вводятся как одна вертикальная интеграция в Фазе 7. Их можно покрывать unit/contract тестами по отдельности, но ни один сервис не объявляется функционально завершённым без общего end-to-end цикла и проверок повторов, restart, watermark, scope и отказов.
 
+Dialogue events, которые возникли в Фазе 5 до появления gnome workers, доставляются через transactional outbox. Для каждого event ID и каждого consumer ID (Memorizer/Summarizer/Thinker) ведётся отдельный delivery state, claim/lease, attempt, idempotency key и watermark. Один consumer не может подтвердить событие за другого. Gnome Scheduler Фазы 7 регистрирует consumers и replay-ит pending deliveries; streaming partial messages не образуют memory events. Durable History write и соответствующий outbox event фиксируются атомарно.
+
 Bot остаётся пятым гномиком. В Фазе 7 фиксируется только его typed plan/action-intent contract; runtime Bot реализуется в Фазе 8 одновременно с Goal Scheduler, полным World Observer, Action Validator/Executor, Navigation и Motion Engine bridge.
 
 Thinker goal proposals в Фазе 7 сохраняются в durable Goal Proposal Inbox/Outbox через общий Storage Facade со scope, evidence, ID, expiry и pending status; запись связана с Thought и не является седьмым хранилищем памяти. Фаза 8 атомарно claims/validates proposal и отмечает его обработанное состояние, чтобы исключить повторное исполнение. До готовности Goal Scheduler Фазы 8 proposals не запускают игровые действия и не изменяют мир.
