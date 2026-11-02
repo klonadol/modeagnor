@@ -202,6 +202,7 @@
 7. Streaming state: partial chunks не durable; финальная фиксация; interrupted response; безопасное восстановление доставки.
 8. Retry semantics: различать transport retry и повтор inference; uncertain provider acceptance требует reconciliation.
 9. Dialogue UI request state machine и поведение при server/provider timeout/disconnect.
+10. Transactional downstream event outbox: finalized inbound/assistant message commit атомарно создаёт durable records (event type, message range, scope, correlation ID, consumer status). В Phase 5 gnome consumers ещё disabled; события сохраняются pending. Phase 7 workers claim/replay накопившиеся records с idempotency и watermark. Сигнал не отправляется в несуществующую очередь, а event не теряется при рестарте между commit и запуском consumer.
 10. Единственный Context Builder создаётся здесь с доступными источниками: Character Definition/system policy, Relationship/Runtime snapshot и finalized Conversation History. Будущие memory stores пока имеют статус NOT_YET_ENABLED, а не имитируют пустой успешный результат.
 11. Context Source Registry: в Phase 6 новые memory stores подключаются адаптерами к тому же Context Builder без переписывания dialogue pipeline или второго сборщика контекста.
 12. Context Builder поддерживает versioned Context Profiles, а не один одинаковый prompt для всех consumers: Phase 5 вводит dialogue profile; Phase 7 — thinker profile. Каждый profile задаёт строгий source allowlist, scope, freshness, priority и token budget. Gnome Input Assemblers используют тот же source registry, но только с фиксированными allowlists (Memorizer — только History + Thoughts; Judge — candidate + scoped Diary retrieval).
@@ -330,7 +331,7 @@
 - Phase 2 создаёт NPC Runtime, Character Definition Registry и runtime persistence. Phase 4 добавляет pack source к тому же Registry.
 - Phase 3 строит renderer/Motion/Face execution layer и проверяет его только scripted harness; synthetic gait не требует Navigation.
 - Phase 4 подключает external Content Pack loader к готовым Character Definition и runtime asset contracts.
-- Phase 5 создаёт единственный Context Builder и durable Conversation History. Он начинает только с имеющихся sources; Phase 6 расширяет source registry.
+- Phase 5 создаёт единственный Context Builder, durable Conversation History и transactional outbox для downstream message events. Gnome consumers ещё disabled; Phase 7 replay/consumes pending events. Context Builder начинает только с имеющихся sources; Phase 6 расширяет source registry.
 - Phase 6 добавляет все шесть memory stores в общий Storage Facade; наличие store ещё не означает готовность его producer/consumer.
 - Phase 7 совместно реализует Event Feed foundation, Scheduler и четыре когнитивных гномика. Event Feed наполняет Action Memory; Thinker/Thoughts и Memorizer работают как взаимозависимая пара; Judge/Diary и Summarizer/Summary включаются в тот же acceptance cycle.
 - Phase 7 Thinker сохраняет goal proposals в durable inbox; они не выполняются без Goal Scheduler.
@@ -364,6 +365,8 @@
 | GAP-20 | Bot, Goal Scheduler, Action Executor, Navigation и Observer образуют цикл, но были описаны как отдельные задачи | Совместная вертикальная реализация Bot + Goal/Action/Navigation/Observer/Motion bridge в Phase 8 | 8 |
 | GAP-21 | Публичный Addon API планировался до стабилизации Action/Goal/Event contracts | Внутренняя модульность Phase 1; API design Phase 8; freeze Phase 10; addon Phase 11 | 8–11 |
 | GAP-22 | Character Runtime Phase 2 мог неявно требовать renderer, который продуктово подключается только в Phase 3 | Server NPC lifecycle/UUID/persistence не зависят от renderer; Phase 2 client placeholder, Phase 3 Character Presentation Adapter к тому же UUID | 2–3 |
+| GAP-23 | Dialogue Phase 5 публиковал gnome events до активации consumers Phase 7 | Transactional durable outbox в Phase 5; Phase 7/8 claim/replay с idempotency и watermark | 5–8 |
+| GAP-24 | Phase 2 создавал memory/task scopes до появления stores и schedulers | Только stable ownership scope keys в Phase 2; repositories Phase 6, workers Phase 7/8 | 2/6/7/8 |
 
 Этот реестр не означает, что соответствующие функции реализованы. Исправление состоит в том, что проектирование теперь привязано к нужной фазе и имеет проверяемый выход.
 
@@ -376,6 +379,7 @@
 | NPC Runtime ↔ Renderer | Server-owned NPC UUID/state | Client Presentation Adapter/renderer | NPC state — Phase 2 with placeholder; adapter — Phase 3 | Server NPC activation/persistence never waits for client renderer/assets; the adapter binds to the same UUID without creating a second entity lifecycle |
 | Storage / Persistence | Storage backend + Storage Facade | NPC State, Dialogue History, six memory stores | Backend spike — Phase 0; Facade — Phase 1; staged data — Phases 2/5/6 | Единый backend/API и последовательные migrations |
 | Context Builder | Character Definition, Runtime/Relationship state, History; позже memory stores | Dialogue, Thinker | Minimal source set — Phase 5; source adapters — Phase 6/7 | Один Context Builder с расширяемым source registry; будущие источники помечаются NOT_YET_ENABLED, не выдают ложный пустой результат |
+| Dialogue → gnome events | Finalized message/response transaction | Memorizer, Summarizer, Thinker, later goal workflow | Durable event outbox — Phase 5; consumer claim/replay — Phase 7/8 | Commit and outbox are atomic; pending events survive restarts and are consumed idempotently when workers become available |
 | Dialogue presentation | Finalized dialogue events + optional validated emotion/speech-act metadata | Face Controller / Motion Engine | Face API — Phase 3; dialogue adapter — Phase 5 | Не активировать reaction до Phase 5; без metadata — neutral fallback |
 | Action Memory | Server-observed event feed | Thinker, Summarizer, Context Builder | Storage contract — Phase 6; basic producer — Phase 7; full event/outcome producers — Phase 8 | Producer вводится не позже consumer; Phase 7/8 расширяют один feed/store |
 | Thoughts ↔ Memorizer | Thinker пишет Thoughts; Memorizer читает Thoughts | Memory pipeline / Judge / Context | Schema — Phase 6; writer+reader — jointly Phase 7 | Взаимозависимые worker contracts и acceptance в одной фазе |
@@ -498,7 +502,9 @@ Agnor Motion Engine отвечает за то, как выполнить уже
 
 ### 3.2 Создание NPC
 
-Запрос UI/API → server identity и permission validation → world/limit/definition validation → Registry проверяет уникальность UUID → Runtime Factory создаёт независимые state containers, relationship namespace, memory scope и scheduler scope → persistence сохраняет начальное состояние атомарно → сервер публикует разрешённый spawn snapshot → клиенты загружают локальный asset либо placeholder → NPC становится Active после готовности обязательных серверных компонентов.
+Запрос UI/API → server identity и permission validation → world/limit/definition validation → Registry проверяет уникальность UUID → Runtime Factory создаёт независимые state containers, relationship namespace и стабильные memory/task ownership scope keys → persistence сохраняет начальное состояние атомарно → сервер публикует разрешённый spawn snapshot → клиенты загружают локальный asset либо placeholder → NPC становится Active после готовности обязательных серверных компонентов.
+
+Memory/task scope keys в Phase 2 — только стабильные идентификаторы владения, не созданные memory stores, Gnome Task Scheduler queues или запущенные workers. Реальные repositories активируются в Phase 6, background consumers — в Phase 7/8. NPC lifecycle hooks могут публиковать типизированные domain events, но AI/event-memory consumers подключаются поэтапно.
 
 Client renderer readiness не является условием server activation. Если renderer/asset ещё не доступен, spawn snapshot содержит presentation capability status `PRESENTATION_NOT_READY` и разрешённый placeholder descriptor; сервер не ждёт загрузки модели. Character Presentation Adapter Фазы 3 позже привязывает renderer к тому же NPC UUID и следующему versioned presentation snapshot, не создавая новый entity identity или отдельный persistence record. Повтор с тем же idempotency key не создаёт второго NPC.
 
@@ -530,7 +536,7 @@ Goal содержит тип, источник, приоритет, expiry, за
 6. Provider Gateway выполняет запрос вне server thread с deadline, cancellation и token/size bounds.
 7. Output Validator проверяет schema, размер, safety policy и отделяет player-facing text от action/emotion proposals.
 8. Response commit сохраняет ответ, request ID и provider/model metadata без secrets.
-9. Только после commit публикуются события для Memorizer, Summarizer, Thinker/Goal Scheduler и Bot при наличии соответствующего intent.
+9. Только после durable commit создаются transactional outbox records для Memorizer/Summarizer/Thinker, а goal-related records — для последующей передачи в Goal Proposal pipeline. Если consumer ещё не включён (Phase 5 до Phase 7; Goal Scheduler до Phase 8), запись остаётся pending; при активации consumer выполняет scoped claim, idempotent processing и watermark commit. Не отправлять signal to nowhere и не считать отсутствующего consumer обработавшим событие.
 10. Сервер доставляет текст только разрешённому игроку; другим клиентам доступно только публичное presentation/game state.
 11. При проблеме доставки запись остаётся доступной для reconciliation; повторная доставка не вызывает новый inference.
 
