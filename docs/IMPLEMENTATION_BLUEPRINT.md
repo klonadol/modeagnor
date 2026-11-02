@@ -165,9 +165,10 @@
 7. Задать технический интерфейс facial channels/viseme weights и таймлайна, чтобы renderer его поддерживал. Не реализовывать работающий lip-sync: источником viseme timing станет TTS/audio pipeline Фазы 9.
 8. Secondary physics: solver step, substeps, chains, constraints, collision proxies, clamps, pause/unload/reset и performance budgets.
 9. Pose replication: authoritative root/gameplay state, compact presentation payload, sequence, send rate, interpolation, missing snapshots и version mismatch.
-10. Performance/quality test suite по ADR-0006/0007 на одной и нескольких NPC.
+10. Character Presentation Adapter: привязать renderer/rig/pose controller к уже существующим NPC UUID и server presentation snapshots; не создавать новую entity identity/lifecycle и не требовать renderer readiness для server NPC activation.
+11. Performance/quality test suite по ADR-0006/0007 на одной и нескольких NPC.
 
-**Артефакты:** rig capability schema, animation/layer graph, solver contracts, motion-task catalogue, Face Controller API, facial/viseme channel schema, pose DTO, scripted test harness и renderer benchmark. Это технический исполнитель без интегрированного AI.
+**Артефакты:** rig capability schema, animation/layer graph, solver contracts, motion-task catalogue, Face Controller API, facial/viseme channel schema, Character Presentation Adapter contract, pose DTO, scripted test harness и renderer benchmark. Это технический исполнитель без интегрированного AI.
 
 **Design gate:** через scripted test harness модель проходит idle, walk/run, start/stop, turn, look-at, reach, gesture, тестовые expressions, layer blending, secondary physics и two-client sync. Это подтверждает controllability визуального слоя, но НЕ подтверждает живое автономное поведение, осмысленную эмоциональную мимику или lip-sync. Они проверяются после подключения источников в Фазах 5, 7, 8 и 9. Неизвестные capabilities дают fallback, а не crash.
 
