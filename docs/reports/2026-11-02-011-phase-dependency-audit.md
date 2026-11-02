@@ -141,24 +141,6 @@ Unit/contract tests компонентов остаются отдельными
 - Memory repositories активируются в Phase 6; Gnome Task Scheduler/worker consumers — в Phase 7; Goal Scheduler/Action tasks — в Phase 8.
 - NPC lifecycle hooks могут публиковать typed domain events, но не создают ранние AI workers или скрытые ad-hoc queues.
 
-### 3.14 Пассивные данные Content Packs
-
-- Phase 4 валидирует и регистрирует prompts, voice descriptors, facial profiles и declarative behavior settings как данные; loader не вызывает LLM/TTS и не исполняет поведение.
-- Main Dialogue consumer разрешает prompt sources в Phase 5; gnome/Embedding consumers — в Phase 7; Bot — в Phase 8; TTS/voice — в Phase 9.
-- При отсутствии consumer capability данные имеют состояние NOT_YET_ENABLED; загрузка независимых assets/definitions не блокируется.
-
-### 3.15 Поэтапная активация Provider presets
-
-- Phase 5 создаёт общий Provider Gateway и Preset Registry, но активирует только Main Dialogue preset.
-- Cognitive gnome/Embedding destinations активируются с workers в Phase 7; Bot destination/preset — с runtime Bot в Phase 8; TTS — вместе с аудиоконтуром Phase 9.
-- Конфигурационный slot не означает активный consumer; отсутствующие назначения не блокируют основной чат.
-
-### 3.16 Baseline при активации Action Memory Event Feed
-
-- В Phase 7 Event Feed формирует snapshot текущего NPC/world state и начинает durable capture наблюдаемых событий.
-- События до activation не реконструируются задним числом и не выдаются за воспоминания NPC.
-- Диалоговая история до Phase 7 обрабатывается отдельно через durable outbox и остаётся Conversation History.
-
 ### 3.13 Dialogue outbox и независимая доставка каждому consumer
 
 - Каждая durable Conversation History write для accepted inbound message и finalized assistant response атомарно создаёт outbox event; streaming partial не является memory event.
