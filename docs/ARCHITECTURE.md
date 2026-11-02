@@ -152,6 +152,8 @@ Player identity должна основываться на UUID, а ник ис�
 
 **Durable handoff к гномикам:** каждая durable Conversation History write для accepted inbound message и finalized assistant response атомарно создаёт outbox event с message ID, scope, direction/status, sequence и correlation ID. Delivery state ведётся отдельно для каждой пары event ID + consumer ID: pending/claimed/completed/failed, lease/attempt metadata, idempotency key и собственный watermark. Поэтому Memorizer, Summarizer и Thinker независимо claim/replay-ят событие; завершение одного consumer не подтверждает его за других. В Phase 5 gnome consumers disabled; records остаются pending. В Phase 7 Gnome Task Scheduler регистрирует consumers и claim/replay-ит их delivery records идемпотентно. Streaming partial не создаёт memory event. Так диалоговая функция не зависит от ещё не созданных worker queues и не теряет события между фазами.
 
+**Consumer trigger policy для dialogue outbox:** Memorizer объединяет новые finalized History ranges в scoped tasks; Summarizer считает каждую committed message record и создаёт summary task только после threshold (default 10 records); Thinker запускается по `ConversationTurnFinalized`, важным world/NPC events и периодическому интервалу около 30 секунд с coalescing. Accepted inbound и finalized assistant reply считаются отдельными message records; streaming partial/system/retry не считаются. Outbox delivery подтверждается только вместе с durable worker task/aggregation watermark; task execution/retry отслеживаются отдельно.
+
 Context Builder использует consumer-specific Context Profiles (например, `dialogue` и `thinker`) с отдельными source allowlists, scope, freshness, priority и token budgets. Это один механизм сборки, а не один и тот же prompt для всех задач. Gnome Input Assemblers могут повторно использовать source registry, но их allowlists жёстко ограничены контрактом: Memorizer читает только History + Thoughts, Judge — candidate и scoped Diary retrieval. Они не получают полный диалоговый context.
 
 ### Лорбук
@@ -178,7 +180,7 @@ Thinker не может полноценно потреблять Action Memory 
 
 ### Summarizer
 
-Обновляет сводку после каждых 10 сообщений диалога (настраиваемый порог). На вход получает предыдущую сводку и новые сообщения/события. Операция должна быть идемпотентной либо иметь watermark/идентификаторы обработанных событий, чтобы перезапуск не приводил к повторному включению одного и того же фрагмента. Точное определение «дня» (игровой день Minecraft или календарный день) требуется утвердить до реализации.
+Обновляет сводку после каждых 10 committed Conversation History message records (настраиваемый порог). Одна accepted inbound player message и одна finalized assistant reply считаются двумя разными records; streaming partial/system/retry не считаются. На вход получает предыдущую сводку и точный новый source range. Операция должна быть идемпотентной и использовать sequence/watermark, чтобы replay/restart не повторял один и тот же фрагмент. Точное определение «дня» (игровой день Minecraft или календарный день) требуется утвердить до реализации.
 
 ## 6. Gnome Task Scheduler
 
