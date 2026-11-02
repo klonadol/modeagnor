@@ -4,6 +4,7 @@
 
 ## Записи
 
+| 2026-11-02 | Аудит межфазных producer/consumer-зависимостей | Done (documentation dependency audit; runtime unverified) | [Отчёт 011](reports/2026-11-02-011-phase-dependency-audit.md) | Исправлены staging-контракты Character Definition/Storage/Context Builder/Action Memory; Phase 7 когнитивный цикл и Phase 8 Bot/Goal/Action/Navigation объединены в вертикальные этапы; разделены два Scheduler и версии Pack/Add-on API |
 | Дата | Работа | Статус | Отчёт | Основной результат |
 |---|---|---|---|---|
 | 2026-11-02 | Разделение Motion Engine и источников поведения персонажа | Done (documentation correction; runtime unverified) | [Отчёт 010](reports/2026-11-02-010-brain-motion-phase-correction.md) | Фаза 3 ограничена техническим исполнителем/test harness; dialogue reactions перенесены в Фазу 5, Thinker affect — в 7, автономная связка Brain-to-Motion — в 8, lip-sync — в 9 |
