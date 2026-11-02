@@ -368,6 +368,7 @@
 | GAP-22 | Character Runtime Phase 2 мог неявно требовать renderer, который продуктово подключается только в Phase 3 | Server NPC lifecycle/UUID/persistence не зависят от renderer; Phase 2 client placeholder, Phase 3 Character Presentation Adapter к тому же UUID | 2–3 |
 | GAP-23 | Dialogue Phase 5 публиковал gnome events до активации consumers Phase 7 | Transactional durable outbox в Phase 5; Phase 7/8 claim/replay с idempotency и watermark | 5–8 |
 | GAP-24 | Phase 2 создавал memory/task scopes до появления stores и schedulers | Только stable ownership scope keys в Phase 2; repositories Phase 6, workers Phase 7/8 | 2/6/7/8 |
+| GAP-25 | Один общий outbox acknowledgement мог позволить первому gnome consumer подтвердить message event за остальные consumers | Независимая delivery record на пару event_id + consumer_id, с claim/lease, attempt, idempotency и собственным watermark; History outbox отделён от Action Memory world events | 5/7 |
 
 Этот реестр не означает, что соответствующие функции реализованы. Исправление состоит в том, что проектирование теперь привязано к нужной фазе и имеет проверяемый выход.
 
