@@ -226,11 +226,12 @@
 5. Backup schedule, consistency snapshot, restore to separate test world, corruption detection и recovery mode.
 6. Retention: срок/условие для History, Action Memory, Thoughts, pending candidates, Diary и Summary; ничего не удалять без явной policy.
 7. Embedding index lifecycle: provider/model/version, rebuild/reindex, stale vector handling и fallback. Сам adapter подключается в Phase 7, но storage interface планируется заранее.
-8. Day/period abstraction для Daily Summary как open decision, который должен быть закрыт до реализации Summary в Phase 7.
-8a. В Phase 6 доступны exact/keyword/Always Lorebook activations; semantic-only retrieval явно остаётся NOT_YET_ENABLED до Embedding adapter Phase 7. Нельзя вернуть пустой semantic result и скрыть, что capability ещё не подключена.
-9. Все stores создаются через Storage Facade, уже используемый Phase 2 и Phase 5. History переиспользует существующие message IDs/scope/sequence; отдельных БД или временных форматов не создавать.
-10. Action Memory storage schema/API готовится здесь, но event-feed writer ещё не подключён; функциональность хранилища принимается только после producer Phase 7.
-11. Thoughts schema/API готовится здесь, но runtime writer/reader cycle появляется только в совместной интеграции Phase 7.
+8. Зафиксировать canonical message count для Conversation History/Summarizer: одна durable message record — одно сообщение; accepted inbound player message и finalized assistant reply считаются отдельно. Streaming partial, system prompt entries, transport retries и uncommitted interrupted partials не считаются. Default summary threshold — 10 records, диапазон определяется по message sequence/watermark.
+9. Day/period abstraction для Daily Summary как open decision, который должен быть закрыт до реализации Summary в Phase 7.
+10. В Phase 6 доступны exact/keyword/Always Lorebook activations; semantic-only retrieval явно остаётся NOT_YET_ENABLED до Embedding adapter Phase 7. Нельзя вернуть пустой semantic result и скрыть, что capability ещё не подключена.
+11. Все stores создаются через Storage Facade, уже используемый Phase 2 и Phase 5. History переиспользует существующие message IDs/scope/sequence; отдельных БД или временных форматов не создавать.
+12. Action Memory storage schema/API готовится здесь, но event-feed writer ещё не подключён; функциональность хранилища принимается только после producer Phase 7.
+13. Thoughts schema/API готовится здесь, но runtime writer/reader cycle появляется только в совместной интеграции Phase 7.
 
 **Артефакты:** ER/data model, schema versioning, migration scripts plan, backup/restore procedure, scope matrix, retention matrix и crash-recovery tests.
 
