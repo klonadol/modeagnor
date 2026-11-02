@@ -32,6 +32,8 @@
 13. Один общий event acknowledgement мог позволить одному gnome consumer подтвердить message event за остальных.
 14. Phase 2 memory/task scopes могли быть ошибочно реализованы как actual stores/queues до их фаз 6–8.
 15. Различие между world events для Action Memory и message events для гномиков требовало явной границы, иначе диалоги могли дублироваться в Action Memory.
+16. Content Packs могли содержать prompts/voice/behavior descriptors до появления соответствующих consumers и случайно пытаться активировать их раньше времени.
+17. Provider Gateway Phase 5 мог требовать отдельные gnome/Embedding/Bot/TTS presets до появления самих consumers.
 
 ## 3. Принятые исправления по зависимостям
 
@@ -142,6 +144,18 @@ Unit/contract tests компонентов остаются отдельными
 - Outbox доставляет consumer jobs, но не копирует текст реплик в Action Memory. Conversation History хранит сообщения; Action Memory получает только typed world/action events от World Event Feed.
 - Phase 5 сохраняет events pending; Phase 7 регистрирует consumers и безопасно replay-ит накопившиеся records.
 
+### 3.14 Пассивные данные Content Packs
+
+- Phase 4 валидирует и регистрирует prompts, voice descriptors, facial profiles и declarative behavior settings как данные; loader не вызывает LLM/TTS и не исполняет поведение.
+- Main Dialogue consumer разрешает prompt sources в Phase 5; gnome/Embedding consumers — в Phase 7; Bot — в Phase 8; TTS/voice — в Phase 9.
+- При отсутствии consumer capability данные имеют состояние NOT_YET_ENABLED; загрузка независимых assets/definitions не блокируется.
+
+### 3.15 Поэтапная активация Provider presets
+
+- Phase 5 создаёт общий Provider Gateway и Preset Registry, но активирует только Main Dialogue preset.
+- Независимые cognitive gnome/Embedding destinations активируются с workers в Phase 7; Bot destination/preset — с runtime Bot в Phase 8; TTS — вместе с аудиоконтуром Phase 9.
+- Конфигурационный slot не означает активный consumer; отсутствующие назначения не блокируют основной чат.
+
 ## 4. Группы обязательной совместной реализации
 
 | Фаза | Компоненты | Почему нельзя принимать независимо |
@@ -165,10 +179,10 @@ Unit/contract tests компонентов остаются отдельными
 
 | Путь | Изменение |
 |---|---|
-| docs/IMPLEMENTATION_BLUEPRINT.md | Добавлена dependency matrix 0.10, правило готовности 0.11, GAP-15…GAP-25; последние уточняют renderer staging, scope keys и transactional per-consumer dialogue event delivery, unified registry/storage/context staging, co-implementation Phase 7/8/9, goal outbox, scheduler distinction, embedding and API version staging |
+| docs/IMPLEMENTATION_BLUEPRINT.md | Добавлена dependency matrix 0.10, правило готовности 0.11, GAP-15…GAP-27; последние уточняют renderer staging, scope keys, transactional per-consumer dialogue event delivery, passive pack resources и staged Provider preset activation, unified registry/storage/context staging, co-implementation Phase 7/8/9, goal outbox, scheduler distinction, embedding and API version staging |
 | docs/ROADMAP.md | Фазы 1/2/3/4/5/6/7/8/11 уточнены по producer/consumer dependency; четыре cognitive gnomes в Phase 7; Bot/full autonomy в Phase 8 |
 | docs/ARCHITECTURE.md | Добавлены Character Definition Registry staging, server NPC/renderer decoupling, Context Profiles, Phase 5 dialogue outbox with per-consumer delivery, Event Feed dependency, scope-key staging и distinction of schedulers |
-| docs/decisions/ADR-0003-content-packs.md | Разделены Content Pack schema version и executable Addon API version |
+| docs/decisions/ADR-0003-content-packs.md | Разделены Content Pack schema version и executable Addon API version; prompts/voice/behavior resources определены как пассивные данные с consumer activation в фазах 5/7/8/9 |
 | docs/decisions/ADR-0004-memory-pipeline.md | Зафиксированы совместная активация memory/gnome cycle, Event Feed, per-consumer dialogue outbox delivery, Goal Proposal Outbox и scheduler distinction |
 | docs/decisions/ADR-0005-optional-integrations.md | Публичный Addon API стабилизируется после Phase 8 и freeze Phase 10; addons в Phase 11 |
 | docs/INDEX.md | Назначение Blueprint уточнено как карта producer/consumer и co-implementation dependencies |
@@ -185,6 +199,7 @@ Unit/contract tests компонентов остаются отдельными
 | Dependency mapping | PASS (documentation) | Для основных producer/consumer chains определены фазы и стадии активации |
 | Joint implementation groups | PASS (documentation) | Явно назначены совместные Phase 7/8/9 vertical integrations |
 | Cross-phase durable event delivery | PASS (documentation) | Phase 5 outbox is durable; Phase 7 consumers claim/replay independently per event_id + consumer_id; dialogue messages remain in History, not Action Memory |
+| Staged pack/provider activation | PASS (documentation) | Phase 4 packs register passive prompt/behavior/voice data; Phase 5 activates Main Dialogue only; gnome/Embedding, Bot and TTS presets activate with consumers in phases 7/8/9 |
 | Cross-document consistency | PASS (documentation) | Финально перечитаны Blueprint, Roadmap, Architecture, ADR-0003/0004/0005, Index, report и journal; Phase 2 placeholder ↔ Phase 3 adapter, Phase 5 outbox ↔ Phase 7 consumers и per-consumer delivery state согласованы |
 | Runtime implementation/tests | НЕ ПРОВЕРЕНО | Изменения только документационные; код проекта не реализован |
 
