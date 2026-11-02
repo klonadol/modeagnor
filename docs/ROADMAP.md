@@ -138,7 +138,6 @@
 - Расширяемый Context Source Registry: Фаза 6 подключает memory stores через адаптеры к этому же сборщику контекста.
 - Контекст каждой секции отличает NOT_YET_ENABLED от доступного, но пустого источника; отсутствие будущего store не маскируется под успешный пустой retrieval.
 - Каждая durable write в Conversation History (accepted inbound message и finalized assistant response; streaming partial не включается) атомарно создаёт downstream event outbox record с message ID/range, scope, direction/status и sequence. Для каждой пары event ID + consumer ID ведётся отдельный delivery state (pending/claimed/completed, attempts/lease, idempotency key и свой watermark); обработка Memorizer не подтверждает событие за Summarizer или Thinker. Пока gnome consumers не активированы, deliveries остаются pending; Phase 7 replay-ит их независимо, без потери/повторов.
-- Finalized message/response commit атомарно записывает downstream event records в durable outbox (message range, scope, event type, correlation ID). Consumers гномиков до Фазы 7 disabled; outbox не пытается отправить сигнал в ещё не существующую очередь.
 - Context Builder поддерживает отдельные dialogue/thinker profiles с собственными allowlists, scope, freshness и token budgets; это один engine, не отдельные копии сборщика контекста.
 - Dialogue Presentation Adapter: реальные реакции на собеседника — поворот/взгляд на говорящего, listening/thinking/speaking states, ограниченные conversational expressions и простые жесты через Motion Engine.
 - Передавать в Face/Body Controller только валидированные semantic states/expressions, а не сырые LLM-команды на кости/morph weights; при отсутствии metadata использовать нейтральную реакцию.
@@ -167,9 +166,8 @@
 ### Фаза 7. Когнитивные гномики и планировщик
 
 Задачи:
-- Реализовать ограниченный World Event Feed Foundation, который собирает server-side события, необходимые Thinker и Action Memory: dialogue lifecycle, вход/выход/приближение игрока, существенные наблюдаемые взаимодействия и важные изменения NPC. Это источник данных, не полный автономный Observer и не action executor.
-- Подключить Phase 5 dialogue outbox и Phase 2 NPC lifecycle hooks: workers claim/replay pending records, используют message/event IDs, idempotency и watermark; события, накопленные до активации гномиков, не теряются и не обрабатываются повторно.
-- Подключить и replay накопившиеся transactional dialogue outbox records из Фазы 5; каждая delivery обрабатывается отдельно по event ID + consumer ID, с собственным claim/lease, idempotency и watermark commit. Завершение одного consumer не закрывает delivery остальных; restart не теряет и не дублирует обработку.
+- Реализовать ограниченный World Event Feed Foundation, который собирает server-side события, необходимые Thinker и Action Memory: Phase 2 NPC lifecycle hooks, Phase 5 transactional Conversation History outbox, вход/выход/приближение игрока, существенные наблюдаемые взаимодействия и важные изменения NPC. Это источник данных, не полный автономный Observer и не action executor.
+- Подключить и replay накопившиеся Phase 5 dialogue outbox records: каждая delivery обрабатывается отдельно по event ID + consumer ID, с собственным claim/lease, idempotency и watermark commit. Завершение одного consumer не закрывает delivery остальных; restart не теряет и не дублирует обработку.
 - Реализовать Gnome Task Scheduler: bounded queues, приоритеты, per-gnome/per-provider limits, deduplication, cancellation, retry/backoff, checkpoint и metrics. Это очередь фоновых AI jobs; Goal Scheduler игровых целей появляется в Фазе 8 и является отдельной системой.
 - Совместно подключить Memorizer (History + Thoughts) и Thinker (создаёт/обновляет Thoughts); ThoughtChanged, watermark и защита от stale results проверяются как одна связка.
 - Подключить Judge к candidate pipeline и Diary; Thinker использует Diary только после того, как candidate → Judge → transactional Diary write реально подключены.
