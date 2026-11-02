@@ -185,7 +185,7 @@
 8. Client availability/sync policy: allowed redistribution + admin opt-in, local-only assets, trusted source/manual install/refusal при mismatch.
 9. Provenance/license metadata и capability fallback на каждом asset.
 10. Consumer readiness/activation: model/assets/definitions могут активироваться после успешной pack validation; prompt templates лишь регистрируются как data source и начинают использоваться Main Dialogue только в Phase 5, gnome prompts/policies — в Phase 7, Bot planning data — в Phase 8, voice descriptors/TTS assets — в Phase 9. Неактивный consumer даёт явный NOT_YET_ENABLED, но не блокирует загрузку независимых ресурсов пакета.
-10. Definition Source Adapter: validated pack definitions регистрируются через Phase 2 Character Definition Registry и его schema/version; pack loader не создаёт параллельную систему персонажей.
+11. Definition Source Adapter: validated pack definitions регистрируются через Phase 2 Character Definition Registry и его schema/version; pack loader не создаёт параллельную систему персонажей.
 
 **Артефакты:** manifest/schema, precedence rules, package state machine, validation threat cases, hot-reload matrix, multiplayer transfer policy.
 
@@ -749,6 +749,13 @@ Idempotency key = scope + input range/watermark + policy version. Restart не �
 Ни один AI component не вызывает SDK/HTTP напрямую. Все обращения идут через Provider Gateway и typed capabilities.
 
 Независимые presets: Main Dialogue, Memorizer, Judge, Thinker, Bot (если LLM используется), Summarizer, Embedding, TTS. Reuse одного profile ID допустим только как явная настройка.
+
+Назначения имеют общий versioned registry, но активируются только вместе со своими consumers:
+- Main Dialogue — Phase 5;
+- Memorizer/Judge/Thinker/Summarizer + Embedding — Phase 7;
+- Bot — Phase 8;
+- TTS — Phase 9.
+Конфигурационный slot для будущего назначения может существовать заранее, но его runtime status остаётся NOT_YET_ENABLED; он не блокирует Main Dialogue и не создаёт фиктивных provider calls.
 
 Adapter lifecycle:
 1. Config Resolver читает preset.
