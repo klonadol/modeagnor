@@ -63,6 +63,41 @@
 | 10. Полировка и первый релиз | Multiplayer regression, load, long sessions/restart, errors/migrations, API cost/performance settings, install/pack docs, compatibility matrix | 19–25 | **Частично.** Test taxonomy есть; нужно формализовать release matrix, soak tests, packaging/update/rollback и user documentation gate |
 | 11. Мир и финальная версия | World transfer, character packs, addon integrations/Create, expanded voice/interactions, final replacement of temporary assets | 14, 21, 26, 27–28 | **Есть пробел.** Blueprint не содержал отдельного migration workflow авторского мира и полного optional addon API contract; они добавлены в разделы 27–28 |
 
+### 0.5.1 Обратная сверка ARCHITECTURE и ADR
+
+#### ARCHITECTURE.md → Blueprint
+
+| Источник ARCHITECTURE | Соответствующие разделы Blueprint | Итог |
+|---|---|---|
+| 1. Цели и границы | 0.5–0.8, 1–2, 27–28 | Сохранено; границы standalone release и Phase 11 отражены |
+| 2. Архитектурные слои | 2 | Сохранено |
+| 3. Хост-авторитетная модель | 1, 3, 15, 18, 20, 22 | Сохранено; runtime verification остаётся обязательной |
+| 4. Character Runtime | 3–4, 12, 21 | Сохранено; точная state machine и persistence gates назначены Phase 2 |
+| 5. Система памяти | 6–9 | Сохранено; шесть stores и ограничения Memorizer/Judge/Thinker/Summarizer описаны |
+| 6. Gnome Task Scheduler | 8–9, 19–20, 22 | Сохранено; fairness, concurrency, retry и recovery заданы; numeric budgets остаются Open |
+| 7. Provider Gateway | 5, 10, 17, 24 | Сохранено; provider-specific schemas/capabilities требуют Phase 0/5/7/9 validation |
+| 8. 3D, Motion Engine и физика | 13–14, 21.4, 23, 25 | Сохранено; renderer/solver/pose budgets остаются предметом Phase 0/3 spikes |
+| 9. Content Packs | 14–15, 20 | Расширено package state machine, enable/disable, precedence, hot reload и rollback для Phase 4 |
+| 10. Persistence и изоляция | 3, 7, 20, 22, 25 | Расширено backup/restore/retention и staged migration path; backend/schema остаются Open до Phase 0/6 |
+| 11. Безопасность и права | 1, 6, 15–16, 18, 20 | Сохранено; точная permission matrix закрывается в Phase 1 и проверяется в каждой фазе |
+| 12. Совместимость и дополнительные моды | 27 | Добавлен отсутствовавший optional extension/addon API contract |
+| 13. Открытые технические вопросы | 0.6–0.8, 26–28 | Каждый вопрос привязан к фазе closure; неразрешённые решения не выданы за готовые |
+
+#### ADR-0001…ADR-0008 → Blueprint
+
+| ADR | Разделы Blueprint | Статус соответствия |
+|---|---|---|
+| ADR-0001 Platform | 1–3, 15, 22, 25; Phase 0–1 | Требования отражены; Fabric 1.21.1 build/runtime proof остаётся Phase 0 gate |
+| ADR-0002 Host-authoritative runtime | 1, 3, 15, 18, 20–22 | Требование отражено сквозными инвариантами; требуется multiplayer verification |
+| ADR-0003 Content Packs | 14–15, 20; Phase 0/4 | Ограничения и package lifecycle описаны; path/sync/hot reload остаются техническими проверками |
+| ADR-0004 Memory pipeline | 6–9, 10, 20, 22; Phase 5–7 | Шесть stores и гномики сопоставлены; schema/index/retention/day-boundary остаются Open до фаз внедрения |
+| ADR-0005 Optional integrations | 27; Phase 1 design, Phase 11 addon | Ранее отсутствовавший отдельный контракт добавлен; реальная совместимость Create не заявляется |
+| ADR-0006 Character visual quality | 13–14, 23, 25; Phase 0/3/10 | Acceptance profile и capability fallbacks сохранены; конкретный renderer и benchmark не утверждены без spike |
+| ADR-0007 Procedural Motion Engine | 12–13, 21.4, 23, 25; Phase 0/3/8 | Semantic tasks/pipeline отражены; solver strategy, timestep, collisions и snapshot rate остаются Open до измерений |
+| ADR-0008 External character assets | 14; Phase 0/3/4/11 | Asset-first, Blender adaptation, capability report, provenance и restricted-asset release gate отражены |
+
+Матрицы фиксируют прослеживаемость требований. Они не означают, что каждый пункт реализован, а статус «сохранено» относится только к качеству проектной документации.
+
 ### 0.6 Порядок проектирования по фазам 0–11
 
 Для каждой фазы ниже перечислены не только работы ROADMAP, но и то, что должно быть спроектировано **до реализации**. Это основной последовательный план проектирования.
