@@ -202,6 +202,7 @@
 9. Dialogue UI request state machine и поведение при server/provider timeout/disconnect.
 10. Единственный Context Builder создаётся здесь с доступными источниками: Character Definition/system policy, Relationship/Runtime snapshot и finalized Conversation History. Будущие memory stores пока имеют статус NOT_YET_ENABLED, а не имитируют пустой успешный результат.
 11. Context Source Registry: в Phase 6 новые memory stores подключаются адаптерами к тому же Context Builder без переписывания dialogue pipeline или второго сборщика контекста.
+12. Context Builder поддерживает versioned Context Profiles, а не один одинаковый prompt для всех consumers: Phase 5 вводит dialogue profile; Phase 7 — thinker profile. Каждый profile задаёт строгий source allowlist, scope, freshness, priority и token budget. Gnome Input Assemblers используют тот же source registry, но только с фиксированными allowlists (Memorizer — только History + Thoughts; Judge — candidate + scoped Diary retrieval).
 
 **Важное staging решение:** Фаза 5 реализует durable minimal Conversation History через общий Storage API — те же message IDs, scope и последовательность, которые будут использоваться далее. Фаза 6 расширяет этот же контракт до полной системы памяти. Не создавать временное второе хранилище истории и не переписывать диалог при добавлении шести stores.
 
@@ -235,10 +236,10 @@
 
 **Обязательный объём совместной реализации:**
 1. Сначала поднять **World Event Feed Foundation** — ограниченный server-side producer релевантных событий NPC/игрока: dialogue lifecycle, вход/выход и приближение игрока, наблюдаемые взаимодействия рядом с NPC и существенные изменения NPC. Он пишет типизированные записи в Action Memory. Это не полный World Observer Фазы 8 и не исполняет actions.
-2. Реализовать Scheduler envelope, bounded queue partitions, per-gnome/per-provider concurrency, priorities, fairness, dedupe, retry, cancellation, checkpoint и metrics.
+2. Реализовать Gnome Task Scheduler envelope, bounded queue partitions, per-gnome/per-provider concurrency, priorities, fairness, dedupe, retry, cancellation, checkpoint и metrics. Это планировщик фоновых worker tasks, не Goal Scheduler игровых целей.
 3. Совместно подключить Memorizer и Thinker: Memorizer читает History + Thoughts, Thinker создаёт/обновляет Thoughts. Их contracts, watermark, ThoughtChanged trigger и stale-result reconciliation проверяются вместе; Memorizer нельзя принимать как законченную функцию до появления Thinker writer.
 4. Подключить Judge к candidate pipeline и Diary transactionally. Thinker читает утверждённый Diary; поэтому цепочка Memorizer → Judge → Diary → Thinker принимается только как единая интеграция.
-5. Подключить Summarizer к finalized Conversation History и доступным Event Feed/Action Memory events; Thinker получает предыдущую Summary. SummaryUpdated не запускает бесконечный trigger loop.
+5. Подключить Summarizer к finalized Conversation History и доступным Event Feed/Action Memory events; Thinker получает предыдущую Summary через thinker Context Profile. SummaryUpdated не запускает бесконечный trigger loop.
 6. Подключить независимые provider presets для активируемых в этой фазе когнитивных гномиков (Memorizer, Judge, Thinker, Summarizer) и Embedding adapter/profile (model/index version, reindex, fallback). Bot-specific preset/capability вводится вместе с runtime Bot в Phase 8.
 7. Подключить Affective/Presentation Mapper: validated Thinker outputs (emotion/intensity/attention/desire) переводятся в разрешённые face/body intents с smoothing, hysteresis, expiry и rig-capability fallback.
 8. Разделить cognitive goal proposals и presentation state: Thinker может сохранять желания/цели независимо от эмоций и не выдаёт world actions напрямую.
@@ -256,8 +257,8 @@
 
 **Обязательная совместная вертикальная реализация:**
 1. Расширить Phase 7 Event Feed до полного World Observer event catalogue: typed actors/targets/outcomes/location/time/visibility, event importance, durability, dedupe/coalesce и server observation policy.
-2. Реализовать Goal Scheduler и подключить его к durable Goal Proposal Inbox из Phase 7: проверить expiry/evidence/preconditions/priority, выбрать активную цель, управлять dependencies, preemption, retries и anti-loop.
-3. Реализовать **Bot как пятого гномика**: преобразовать выбранную Goal в typed action plan; это runtime реализация schema, подготовленной в Phase 7. Подключить отдельный Bot provider preset и capability validation, если планирование использует LLM; deterministic plan executor не должен вызывать модель на каждый tick.
+2. Реализовать отдельный Goal Scheduler и подключить его к durable Goal Proposal Inbox из Phase 7: проверить expiry/evidence/preconditions/priority, выбрать активную цель, управлять dependencies, preemption, retries и anti-loop.
+3. Реализовать **Bot как пятого гномика**: преобразовать выбранную Goal в typed action plan; это runtime реализация schema, подготовленной в Phase 7. Подключить отдельный Bot provider preset и capability validation, если планирование использует LLM; deterministic plan executor не должен вызывать модель на каждый tick. Bot inference dispatch использует расширенный Gnome Task Scheduler, а не создаёт собственную очередь фоновых задач.
 4. Совместно реализовать Action Registry, Action Validator и Action Executor: whitelist schemas, permission/range/cooldown/world preconditions, idempotency, cancellation, uncertain outcome reconciliation и audit.
 5. Совместно реализовать Navigation/Follow: path, repath, stuck detection, obstacles, unloaded chunks, moving targets, stop/cancel, arrival predicate и фактический movement result.
 6. Соединить Navigation velocity/root movement с Motion Engine gait Phase 3; подключить gesture/reach/look-at и multi-task arbitration к реальным action targets, а не synthetic inputs.
@@ -381,6 +382,7 @@
 | World Observer | Runtime/server events and actual action outcomes | Action Memory, Thinker, Goal Scheduler | Basic Event Feed — Phase 7; full Observer — Phase 8 | Minimal producer is available before Thinker; full observer expands in Phase 8 |
 | Navigation ↔ gait | Path/target/velocity and locomotion outcomes | Motion Engine locomotion | Synthetic root/velocity test — Phase 3; real world navigation bridge — Phase 8 | Gait tested earlier; actual path-following only in joint Phase 8 |
 | TTS ↔ face ↔ audio | Finalized dialogue, TTS, playback clock, viseme timing | Face Controller and client audio | Face API — Phase 3; provider foundation — Phase 5; end-to-end — Phase 9 | Audio generation, playback synchronization and lip-sync accepted together |
+| Gnome Task Scheduler vs Goal Scheduler | Gnome Task Scheduler управляет background worker jobs; Goal Scheduler управляет игровыми целями и Action lifecycle | Gnomes / Bot / Action Runtime | Gnome Task Scheduler — Phase 7; Goal Scheduler — Phase 8 | Разные bounded services; Goal proposals передаются через durable inbox, не через shared in-memory queue |
 | Optional addon API | Stable Action/Goal/Event extension points | External addon modules | Internal modularity — Phase 1; semantic API design — Phase 8; freeze — Phase 10; addon use — Phase 11 | Do not freeze public extension API before real Action/Goal/Event contracts exist |
 
 ### 0.11 Правило контрактов, реализации и активации
