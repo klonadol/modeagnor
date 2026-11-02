@@ -6,6 +6,7 @@
 
 | Дата | Работа | Статус | Отчёт | Основной результат |
 |---|---|---|---|---|
+| 2026-11-02 | Переиспользование готовых моделей | Done (requirements/docs only) | [Отчёт 004](reports/2026-11-02-004-external-character-assets.md) | Зафиксирован asset-first pipeline, Blender для адаптации, capability report и ограничения лицензий |
 | 2026-11-02 | Процедурный Motion Engine | Done (architecture/docs only) | [Отчёт 003](reports/2026-11-02-003-procedural-motion-engine.md) | Зафиксированы semantic motion tasks, whole-body coordination, IK, процедурная походка, host-side physics и недельная цель прототипа |
 | 2026-11-02 | Уточнение визуальной цели и физики персонажей | Done (requirements/docs only) | [Отчёт 002](reports/2026-11-02-002-character-visual-quality.md) | Зафиксирован целевой профиль уровня stylized action-RPG / ZZZ; renderer оставлен на сравнительный прототип |
 | 2026-11-02 | Инициализация документации проекта | Done (docs only) | [Отчёт 001](reports/2026-11-02-001-documentation-baseline.md) | Созданы README, архитектура, roadmap, индекс, пять ADR и шаблоны |
@@ -15,7 +16,7 @@
 - **Стадия:** архитектурное проектирование / подготовка к техническим проверкам.
 - **Реализация:** не начиналась в этом репозитории на момент создания базовой документации.
 - **Сборка и тесты:** отсутствуют; проверить пока нечего.
-- **Ближайшая задача:** Фаза 0 — минимальный Fabric 1.21.1 / Java 21 проект и time-boxed render/motion/physics spike: GLB, semantic tasks, IK, базовая походка, spring-chain волосы и host-authoritative pose sync.
+- **Ближайшая задача:** Фаза 0 — минимальный Fabric 1.21.1 / Java 21 проект; проверить импорт готовой rigged-модели и static GLB, semantic tasks, IK, базовую походку, spring-chain волосы и host-authoritative pose sync.
 - **Текущая ветка:** `main`.
 
 ## Как обновлять журнал
