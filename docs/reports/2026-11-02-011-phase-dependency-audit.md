@@ -176,8 +176,14 @@ Unit/contract tests компонентов остаются отдельными
 ### 3.15 Поэтапная активация Provider presets
 
 - Phase 5 создаёт общий Provider Gateway и Preset Registry, но активирует только Main Dialogue preset.
-- Независимые cognitive gnome/Embedding destinations активируются с workers в Phase 7; Bot destination/preset — с runtime Bot в Phase 8; TTS — вместе с аудиоконтуром Phase 9.
+- Cognitive gnome/Embedding destinations активируются с workers в Phase 7; Bot destination/preset — с runtime Bot в Phase 8; TTS — вместе с аудиоконтуром Phase 9.
 - Конфигурационный slot не означает активный consumer; отсутствующие назначения не блокируют основной чат.
+
+### 3.16 Baseline при активации Action Memory Event Feed
+
+- В Phase 7 Event Feed формирует snapshot текущего NPC/world state и начинает durable capture наблюдаемых событий.
+- События до activation не реконструируются задним числом и не выдаются за воспоминания NPC.
+- Диалоговая история до Phase 7 обрабатывается отдельно через durable outbox и остаётся Conversation History.
 
 ## 4. Группы обязательной совместной реализации
 
