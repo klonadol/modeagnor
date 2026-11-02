@@ -13,6 +13,7 @@
 | Требования к качеству моделей и физике | [ADR-0006](decisions/ADR-0006-character-visual-quality-and-physics.md) |
 | Процедурное движение, IK и Motion Engine | [ADR-0007](decisions/ADR-0007-procedural-motion-engine.md) |
 | Внешние готовые 3D-модели и их импорт | [ADR-0008](decisions/ADR-0008-reuse-external-character-assets.md) |
+| Временные модели, которые нужно заменить до релиза | [Asset Replacement Register](assets/ASSET_REPLACEMENT_REGISTER.md) |
 | Отчёт о конкретной выполненной задаче | [reports/](reports/) |
 | Хронология всех работ | [DEVELOPMENT_LOG.md](DEVELOPMENT_LOG.md) |
 | Шаблон отчёта о работе | [DEVELOPMENT_REPORT_TEMPLATE.md](templates/DEVELOPMENT_REPORT_TEMPLATE.md) |
