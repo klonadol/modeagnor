@@ -157,7 +157,7 @@
 2. Animation graph: base state machine, transitions, crossfade, body-part masks, additive layers и правила interrupt/blend.
 3. Whole Body Controller: ownership body channels, priority arbitration, preemption, constraints и безопасное освобождение каналов.
 4. Solver interface: Two-Bone IK, foot IK, gaze distribution, pole vectors, joint limits; FABRIK/CCD только там, где подтверждено тестом.
-5. Procedural gait: phase, stride, speed, pelvis/weight transfer, arm counter-swing, starts/stops/turns и transition to authored clips.
+5. Procedural gait: phase, stride, speed, pelvis/weight transfer, arm counter-swing, starts/stops/turns и transition to authored clips. В Фазе 3 он получает только synthetic velocity/root-motion inputs из test harness; игровой pathfinding, follow target и фактическое автономное перемещение через мир появятся при интеграции Navigation в Фазе 8.
 6. Face/rig capability: expression channels, eye/eyelid/brow/jaw, morph control и независимость от выбранного клипа. Проверяются контроллеры и тестовые позы; смысловое управление эмоциями ещё не подключается.
 7. Задать технический интерфейс facial channels/viseme weights и таймлайна, чтобы renderer его поддерживал. Не реализовывать работающий lip-sync: источником viseme timing станет TTS/audio pipeline Фазы 9.
 8. Secondary physics: solver step, substeps, chains, constraints, collision proxies, clamps, pause/unload/reset и performance budgets.
