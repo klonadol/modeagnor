@@ -235,7 +235,7 @@
 8. Affective/Presentation Bridge: валидированные structured Thinker outputs (emotion, intensity, desire/attention state) переводятся детерминированным mapping в разрешённые face/body intents. Значения Thinker не являются прямыми командами костям и не обходят Task Planner/Action Validator.
 9. Разделить cognitive goal proposals и presentation state: персонаж может выглядеть заинтересованным/уставшим/настороженным без обязательного игрового действия; goal не обязан менять эмоцию.
 10. Manual run/debug UI: permission check, dry-run/preview, task status, cancel/retry policy, sanitized diagnostics; ручной запуск не обходит validators.
-9. **Bot в этой фазе:** фиксируется service contract, typed plan schema и связь с Goal Scheduler/Motion Engine; полный action execution не реализуется раньше Фазы 8, чтобы не смешивать memory pipeline с world mutation.
+11. **Bot в этой фазе:** фиксируется service contract, typed plan schema и связь с Goal Scheduler/Motion Engine; полный action execution не реализуется раньше Фазы 8, чтобы не смешивать memory pipeline с world mutation.
 
 **Артефакты:** scheduler state machine, gnome input/output schemas, provider assignment matrix, task retry matrix, manual diagnostics UI flow, affect-to-expression mapping contract и end-to-end memory/Thinker tests.
 
