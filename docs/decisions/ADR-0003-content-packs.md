@@ -36,6 +36,17 @@ Content Pack Loader (Фаза 4) не загружает исполняемый 
 
 Это предотвращает зависимость Content Pack Manager от API, которого ещё нет, и не позволяет декларативному пакету стать механизмом обхода запрета на произвольный исполняемый код.
 
+## Пассивные данные и поэтапное подключение consumers
+
+Content Pack Loader валидирует и регистрирует prompts, voice descriptors, facial profiles и declarative behavior settings как данные. Он не вызывает Provider Gateway, не запускает LLM/TTS и не исполняет поведение при scan/activation пакета.
+
+- Main Dialogue начинает разрешать prompt templates в Phase 5.
+- Cognitive gnomes и Embedding начинают использовать соответствующие preset/prompt sources в Phase 7.
+- Bot planning data/preset подключается в Phase 8.
+- Voice descriptors/TTS assets и voice preset подключаются в Phase 9.
+
+Если соответствующего consumer/provider capability ещё нет, ресурс остаётся зарегистрированным с состоянием NOT_YET_ENABLED; это не блокирует загрузку независимых assets/definitions и не выдаёт ложный fallback за выполненную функцию. Host secrets и реальные credentials остаются вне Content Pack.
+
 ## Ограничения безопасности
 
 - Не исполнять произвольный Java-код из пакетов.
