@@ -39,7 +39,13 @@ NPC должен помнить диалоги, факты, действия и�
 
 Bot остаётся пятым гномиком. В Фазе 7 фиксируется только его typed plan/action-intent contract; runtime Bot реализуется в Фазе 8 одновременно с Goal Scheduler, полным World Observer, Action Validator/Executor, Navigation и Motion Engine bridge.
 
-Thinker goal proposals в Фазе 7 сохраняются в durable Goal Proposal Inbox со scope, evidence, ID, expiry и pending status. До готовности Goal Scheduler Фазы 8 они не запускают игровые действия и не изменяют мир.
+Thinker goal proposals в Фазе 7 сохраняются в durable Goal Proposal Inbox/Outbox через общий Storage Facade со scope, evidence, ID, expiry и pending status; запись связана с Thought и не является седьмым хранилищем памяти. Фаза 8 атомарно claims/validates proposal и отмечает его обработанное состояние, чтобы исключить повторное исполнение. До готовности Goal Scheduler Фазы 8 proposals не запускают игровые действия и не изменяют мир.
+
+Gnome Task Scheduler и Goal Scheduler — разные компоненты. Первый управляет фоновыми worker jobs гномиков; второй управляет игровыми целями NPC и появляется в Фазе 8. Между ними не используется общая незащищённая in-memory очередь: handoff выполняется через durable proposal record.
+
+## Доступность семантического поиска по фазам
+
+Lorebook и Diary schema могут быть созданы в Фазе 6; Always/exact/keyword retrieval доступен тогда же. Semantic-only retrieval не считается готовым до Embedding adapter Фазы 7. До этого такие записи имеют явное состояние NOT_YET_ENABLED либо применяют явно настроенный fallback; отсутствие embedding не должно выглядеть как успешный пустой semantic result.
 
 ## Метаданные воспоминаний
 
