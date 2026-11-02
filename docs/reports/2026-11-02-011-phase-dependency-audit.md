@@ -34,6 +34,9 @@
 15. Различие между world events для Action Memory и message events для гномиков требовало явной границы, иначе диалоги могли дублироваться в Action Memory.
 16. Content Packs могли содержать prompts/voice/behavior descriptors до появления соответствующих consumers и случайно пытаться активировать их раньше времени.
 17. Provider Gateway Phase 5 мог требовать отдельные gnome/Embedding/Bot/TTS presets до появления самих consumers.
+18. Event Feed Phase 7 мог неявно обещать реконструкцию world events до своей активации, хотя producer ещё не существовал.
+16. Content Packs могли содержать prompts/voice/behavior descriptors до появления соответствующих consumers и случайно пытаться активировать их раньше времени.
+17. Provider Gateway Phase 5 мог требовать отдельные gnome/Embedding/Bot/TTS presets до появления самих consumers.
 
 ## 3. Принятые исправления по зависимостям
 
@@ -66,7 +69,9 @@
 - Phase 6 создаёт Action Memory schema/API, но не объявляет store функциональным без producer.
 - Phase 7 одновременно с когнитивными гномиками вводит World Event Feed Foundation — ограниченный server-side producer релевантных событий NPC/игрока.
 - Этот feed начинает наполнять Action Memory и предоставляет Thinker/Summarizer наблюдаемые данные.
-- Phase 8 расширяет его до полного World Observer и добавляет фактические outcomes автономных действий.
+- При активации Phase 7 feed формирует baseline snapshot текущего NPC/world state; события до activation не реконструируются и не выдаются за наблюдавшиеся.
+- Phase 5 dialogue outbox replay-ится отдельно как jobs для Memorizer/Summarizer/Thinker; содержимое реплик не копируется в Action Memory.
+- Phase 8 расширяет Event Feed до полного World Observer и добавляет фактические outcomes автономных действий.
 - Сохраняется один Event Feed/Action Memory contract, который расширяется, а не переписывается.
 
 ### 3.5 Когнитивные гномики — совместная интеграция Phase 7
@@ -136,6 +141,24 @@ Unit/contract tests компонентов остаются отдельными
 - Memory repositories активируются в Phase 6; Gnome Task Scheduler/worker consumers — в Phase 7; Goal Scheduler/Action tasks — в Phase 8.
 - NPC lifecycle hooks могут публиковать typed domain events, но не создают ранние AI workers или скрытые ad-hoc queues.
 
+### 3.14 Пассивные данные Content Packs
+
+- Phase 4 валидирует и регистрирует prompts, voice descriptors, facial profiles и declarative behavior settings как данные; loader не вызывает LLM/TTS и не исполняет поведение.
+- Main Dialogue consumer разрешает prompt sources в Phase 5; gnome/Embedding consumers — в Phase 7; Bot — в Phase 8; TTS/voice — в Phase 9.
+- При отсутствии consumer capability данные имеют состояние NOT_YET_ENABLED; загрузка независимых assets/definitions не блокируется.
+
+### 3.15 Поэтапная активация Provider presets
+
+- Phase 5 создаёт общий Provider Gateway и Preset Registry, но активирует только Main Dialogue preset.
+- Cognitive gnome/Embedding destinations активируются с workers в Phase 7; Bot destination/preset — с runtime Bot в Phase 8; TTS — вместе с аудиоконтуром Phase 9.
+- Конфигурационный slot не означает активный consumer; отсутствующие назначения не блокируют основной чат.
+
+### 3.16 Baseline при активации Action Memory Event Feed
+
+- В Phase 7 Event Feed формирует snapshot текущего NPC/world state и начинает durable capture наблюдаемых событий.
+- События до activation не реконструируются задним числом и не выдаются за воспоминания NPC.
+- Диалоговая история до Phase 7 обрабатывается отдельно через durable outbox и остаётся Conversation History.
+
 ### 3.13 Dialogue outbox и независимая доставка каждому consumer
 
 - Каждая durable Conversation History write для accepted inbound message и finalized assistant response атомарно создаёт outbox event; streaming partial не является memory event.
@@ -179,9 +202,9 @@ Unit/contract tests компонентов остаются отдельными
 
 | Путь | Изменение |
 |---|---|
-| docs/IMPLEMENTATION_BLUEPRINT.md | Добавлена dependency matrix 0.10, правило готовности 0.11, GAP-15…GAP-27; последние уточняют renderer staging, scope keys, transactional per-consumer dialogue event delivery, passive pack resources и staged Provider preset activation, unified registry/storage/context staging, co-implementation Phase 7/8/9, goal outbox, scheduler distinction, embedding and API version staging |
+| docs/IMPLEMENTATION_BLUEPRINT.md | Добавлена dependency matrix 0.10, правило готовности 0.11, GAP-15…GAP-28; последние уточняют renderer staging, scope keys, per-consumer dialogue outbox, passive pack resources, staged Provider presets и baseline Event Feed activation, unified registry/storage/context staging, co-implementation Phase 7/8/9, goal outbox, scheduler distinction, embedding and API version staging |
 | docs/ROADMAP.md | Фазы 1/2/3/4/5/6/7/8/11 уточнены по producer/consumer dependency; четыре cognitive gnomes в Phase 7; Bot/full autonomy в Phase 8 |
-| docs/ARCHITECTURE.md | Добавлены Character Definition Registry staging, server NPC/renderer decoupling, Context Profiles, Phase 5 dialogue outbox with per-consumer delivery, Event Feed dependency, scope-key staging и distinction of schedulers |
+| docs/ARCHITECTURE.md | Добавлены Character Definition Registry staging, server NPC/renderer decoupling, Context Profiles, Phase 5 dialogue outbox with per-consumer delivery, Event Feed activation baseline, scope-key staging и distinction of schedulers |
 | docs/decisions/ADR-0003-content-packs.md | Разделены Content Pack schema version и executable Addon API version; prompts/voice/behavior resources определены как пассивные данные с consumer activation в фазах 5/7/8/9 |
 | docs/decisions/ADR-0004-memory-pipeline.md | Зафиксированы совместная активация memory/gnome cycle, Event Feed, per-consumer dialogue outbox delivery, Goal Proposal Outbox и scheduler distinction |
 | docs/decisions/ADR-0005-optional-integrations.md | Публичный Addon API стабилизируется после Phase 8 и freeze Phase 10; addons в Phase 11 |
