@@ -28,6 +28,10 @@
 9. Публичный Addon API мог фиксироваться раньше, чем сформированы реальные Action/Goal/Event contracts.
 10. Версия Content Pack могла быть ошибочно понята как версия executable Addon API.
 11. Первая NPC создавалась в Phase 2 до продуктового renderer Phase 3, но не было явной гарантии, что server Character Runtime независим от визуального слоя.
+12. Dialogue Phase 5 создавала downstream events до появления gnome workers Phase 7; без durable outbox они могли потеряться.
+13. Один общий event acknowledgement мог позволить одному gnome consumer подтвердить message event за остальных.
+14. Phase 2 memory/task scopes могли быть ошибочно реализованы как actual stores/queues до их фаз 6–8.
+15. Различие между world events для Action Memory и message events для гномиков требовало явной границы, иначе диалоги могли дублироваться в Action Memory.
 
 ## 3. Принятые исправления по зависимостям
 
@@ -110,6 +114,26 @@ Unit/contract tests компонентов остаются отдельными
 - Semantic-only retrieval остаётся явно NOT_YET_ENABLED до Embedding adapter Phase 7.
 - Отсутствие embedding не выдаётся за корректную пустую семантическую выдачу.
 
+### 3.11 Server Character Runtime до renderer
+
+- Phase 2 создаёт NPC UUID, Character Definition, Runtime/Relationship state и persistence на сервере; renderer, rig и клиентский model file не являются prerequisites для server activation.
+- При отсутствии renderer/asset сервер публикует `PRESENTATION_NOT_READY`, клиент показывает placeholder.
+- Phase 3 добавляет Character Presentation Adapter к тому же NPC UUID/snapshot; не создаёт вторую entity identity или отдельный lifecycle.
+
+### 3.12 Scope keys не являются преждевременными stores/workers
+
+- Memory/task scope keys в Phase 2 — только стабильные ownership identifiers.
+- Memory repositories активируются в Phase 6; Gnome Task Scheduler/worker consumers — в Phase 7; Goal Scheduler/Action tasks — в Phase 8.
+- NPC lifecycle hooks могут публиковать typed domain events, но не создают ранние AI workers или скрытые ad-hoc queues.
+
+### 3.13 Dialogue outbox и независимая доставка каждому consumer
+
+- Каждая durable Conversation History write для accepted inbound message и finalized assistant response атомарно создаёт outbox event; streaming partial не является memory event.
+- Каждая доставка хранит независимое состояние для пары event ID + consumer ID: pending/claimed/completed/failed, lease/attempt, idempotency key и собственный watermark.
+- Memorizer, Summarizer и Thinker независимо claim/replay-ят свои deliveries. Подтверждение одним consumer не подтверждает событие за другими; Judge получает candidates от Memorizer, не raw dialogue events.
+- Outbox будит/доставляет consumer jobs, но не копирует текст реплик в Action Memory. Conversation History хранит сообщения; Action Memory получает только typed world/action events от World Event Feed.
+- Phase 5 сохраняет events pending; Phase 7 регистрирует consumers и безопасно replay-ит накопившиеся records.
+
 ### 3.10 Версии Content Pack и Addon API
 
 - Phase 4 использует собственную declarative Content Pack schema/API compatibility version.
@@ -147,7 +171,7 @@ Unit/contract tests компонентов остаются отдельными
 
 | Путь | Изменение |
 |---|---|
-| docs/IMPLEMENTATION_BLUEPRINT.md | Добавлена dependency matrix 0.10, правило готовности 0.11, новые GAP-15…GAP-22; GAP-22 фиксирует независимость Phase 2 NPC Runtime от Phase 3 renderer, unified registry/storage/context staging, co-implementation Phase 7/8/9, goal outbox, scheduler distinction, embedding and API version staging |
+| docs/IMPLEMENTATION_BLUEPRINT.md | Добавлена dependency matrix 0.10, правило готовности 0.11, GAP-15…GAP-25; последние уточняют renderer staging, scope keys и transactional per-consumer dialogue event delivery, unified registry/storage/context staging, co-implementation Phase 7/8/9, goal outbox, scheduler distinction, embedding and API version staging |
 | docs/ROADMAP.md | Фазы 1/2/3/4/5/6/7/8/11 уточнены по producer/consumer dependency; четыре cognitive gnomes в Phase 7; Bot/full autonomy в Phase 8 |
 | docs/ARCHITECTURE.md | Добавлены Character Definition Registry staging, Context Profiles, Event Feed dependency, distinction of schedulers и общий dependency policy |
 | docs/decisions/ADR-0003-content-packs.md | Разделены Content Pack schema version и executable Addon API version |
@@ -166,7 +190,7 @@ Unit/contract tests компонентов остаются отдельными
 | Fetch current ROADMAP/Blueprint/Architecture/ADRs | PASS | Изучены изменённые документы и текущие контракты |
 | Dependency mapping | PASS (documentation) | Для основных producer/consumer chains определены фазы и стадии активации |
 | Joint implementation groups | PASS (documentation) | Явно назначены совместные Phase 7/8/9 vertical integrations |
-| Cross-document consistency | PASS (documentation) | Финально перечитаны Blueprint, Roadmap, Architecture, ADR-0003/0004/0005, Index, report и journal; Phase 2 placeholder ↔ Phase 3 adapter также согласованы |
+| Cross-document consistency | PASS (documentation) | Финально перечитаны Blueprint, Roadmap, Architecture, ADR-0003/0004/0005, Index, report и journal; Phase 2 placeholder ↔ Phase 3 adapter, Phase 5 outbox ↔ Phase 7 consumers и per-consumer delivery state согласованы |
 | Runtime implementation/tests | НЕ ПРОВЕРЕНО | Изменения только документационные; код проекта не реализован |
 
 ## 8. Оставшиеся технические ограничения
