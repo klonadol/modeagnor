@@ -372,6 +372,7 @@
 | GAP-25 | Один общий outbox acknowledgement мог позволить первому gnome consumer подтвердить message event за остальные consumers | Независимая delivery record на пару event_id + consumer_id, с claim/lease, attempt, idempotency и собственным watermark; History outbox отделён от Action Memory world events | 5/7 |
 | GAP-26 | Content Packs могли требовать prompt/behavior/voice consumers раньше соответствующих Provider/AI/TTS phases | Pack resources остаются пассивными data; prompts/behavior/voice settings разрешаются только при активации consumer в Phase 5/7/8/9 | 4–9 |
 | GAP-27 | Provider Gateway Phase 5 мог требовать профили для ещё не созданных gnomes/Bot/TTS | Main Dialogue — единственное активное назначение Phase 5; остальные назначения активируются вместе с consumers в Phases 7/8/9 | 5–9 |
+| GAP-28 | Phase 7 Event Feed мог неявно обещать реконструкцию world events до своей активации, хотя producer ещё не существовал | При activation формируется baseline текущего состояния; только последующие observed events пишутся в Action Memory, ретроспективные события не выдумываются | 7 |
 
 Этот реестр не означает, что соответствующие функции реализованы. Исправление состоит в том, что проектирование теперь привязано к нужной фазе и имеет проверяемый выход.
 
