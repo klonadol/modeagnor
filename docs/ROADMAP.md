@@ -154,6 +154,7 @@
 - Embedding adapter и поиск кандидатов.
 - Judge с дедупликацией, объединением и сохранением provenance.
 - Thinker по интервалу и событиям.
+- Bot brain-side contract: typed plan/action-intent schema, связь с Goal Scheduler и Motion Engine; исполняющая часть Bot и world-side effects реализуются в Фазе 8 после появления Action Validator/Executor.
 - Affective Presentation Mapper: перевод структурированных эмоций/интенсивности/внимания Thinker в устойчивые face/body presentation states с smoothing, hysteresis, expiry и fallback; не давать Thinker прямое управление костями.
 - Связать validated Thoughts с текущим поведением, не превращая desire/inference в подтверждённый факт или прямую команду мира.
 - Summarizer каждые 10 сообщений с учётом предыдущей сводки.
