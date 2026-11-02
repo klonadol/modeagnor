@@ -6,6 +6,7 @@
 
 | Дата | Работа | Статус | Отчёт | Основной результат |
 |---|---|---|---|---|
+| 2026-11-02 | Разделение Motion Engine и источников поведения персонажа | Done (documentation correction; runtime unverified) | [Отчёт 010](reports/2026-11-02-010-brain-motion-phase-correction.md) | Фаза 3 ограничена техническим исполнителем/test harness; dialogue reactions перенесены в Фазу 5, Thinker affect — в 7, автономная связка Brain-to-Motion — в 8, lip-sync — в 9 |
 | 2026-11-02 | Сверка Blueprint с архитектурой и фазовый порядок проектирования | Done (documentation review; runtime unverified) | [Отчёт 009](reports/2026-11-02-009-blueprint-phase-review.md) | Добавлены двусторонние матрицы ROADMAP/ARCHITECTURE/ADR, фазовый маршрут 0–11, design gates и 14 устранённых пробелов документации |
 | 2026-11-02 | Системная спецификация устройства и взаимосвязей | Partial (blueprint 0.1) | [Отчёт 008](reports/2026-11-02-008-implementation-blueprint.md) | Создан единый blueprint: функции, API, контекст, связи гномиков, память, runtime, Motion Engine, multiplayer и отказные сценарии; открытые решения отмечены отдельно |
 | 2026-11-02 | Возврат универсальных требований и контроля | Done (docs only) | [Отчёт 007](reports/2026-11-02-007-restore-universal-requirements.md) | Восстановлены полные технические критерии, универсальные контракты, подробная отчётность и политика artifacts только для ручной проверки |
