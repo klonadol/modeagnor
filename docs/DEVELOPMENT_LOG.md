@@ -6,7 +6,7 @@
 
 | Дата | Работа | Статус | Отчёт | Основной результат |
 |---|---|---|---|---|
-| 2026-11-02 | Временные dev-only модели и обязательная замена | Done (requirements/docs only) | [Отчёт 005](reports/2026-11-02-005-temporary-restricted-assets.md) | Разрешено локальное прототипирование с ограниченными ассетами по реестру; релиз блокируется до замены/удаления |
+| 2026-11-02 | Временные модели и замена перед финальной полной версией | Done (requirements/docs only) | [Отчёт 005](reports/2026-11-02-005-temporary-restricted-assets.md) | Локальные временные модели не блокируют первый companion-релиз; замена требуется перед финальным релизом после переноса авторского мира |
 | 2026-11-02 | Переиспользование готовых моделей | Done (requirements/docs only) | [Отчёт 004](reports/2026-11-02-004-external-character-assets.md) | Зафиксирован asset-first pipeline, Blender для адаптации, capability report и ограничения лицензий |
 | 2026-11-02 | Процедурный Motion Engine | Done (architecture/docs only) | [Отчёт 003](reports/2026-11-02-003-procedural-motion-engine.md) | Зафиксированы semantic motion tasks, whole-body coordination, IK, процедурная походка, host-side physics и недельная цель прототипа |
 | 2026-11-02 | Уточнение визуальной цели и физики персонажей | Done (requirements/docs only) | [Отчёт 002](reports/2026-11-02-002-character-visual-quality.md) | Зафиксирован целевой профиль уровня stylized action-RPG / ZZZ; renderer оставлен на сравнительный прототип |
