@@ -9,6 +9,7 @@
 | [ADR-0003](decisions/ADR-0003-content-packs.md) | Внешний контент | Accepted with validation | Пакеты вне JAR; точный путь и синхронизация требуют технической проверки |
 | [ADR-0004](decisions/ADR-0004-memory-pipeline.md) | Память и гномики | Accepted with open details | Шесть хранилищ; Memorizer анализирует историю и мысли |
 | [ADR-0005](decisions/ADR-0005-optional-integrations.md) | Интеграции | Accepted | Create и другие интеграции остаются необязательными |
+| [ADR-0006](decisions/ADR-0006-character-visual-quality-and-physics.md) | Качество 3D и физика | Accepted target; renderer pending | Цель — stylized anime action-RPG и secondary physics уровня ZZZ; конкретный renderer выбирается после прототипа |
 
 ## Как регистрировать решение
 
