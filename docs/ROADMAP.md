@@ -102,6 +102,7 @@
 - Не реализовывать полноценный lip-sync на этой фазе: для него необходим источник audio/viseme timing из Фазы 9.
 - Реализовать host-side secondary motion для волос, подвесок и выбранных элементов одежды.
 - Подготовить Motion Task API и тестовый harness так, чтобы позже к ним подключились Dialogue Presentation Adapter, Thinker/Affective Mapper и Bot/Navigation без переписывания renderer/solver.
+- Реализовать Character Presentation Adapter, который подключает renderer/rig/pose controller к уже существующим NPC UUID и server snapshots из Фазы 2; не создавать вторую NPC identity/lifecycle и не делать renderer prerequisite для server runtime.
 - Реализовать Pose Publisher и ограниченную по частоте/размеру синхронизацию pose snapshots.
 - Проверить cloth/body clipping и столкновения с упрощёнными collision proxies.
 - Синхронизировать authoritative gameplay state и визуальное состояние между клиентами.
