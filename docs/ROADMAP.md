@@ -118,6 +118,7 @@
 - Сканирование, проверка, включение и отключение.
 - Внешние модели, текстуры, анимации и определения персонажей.
 - Metadata происхождения, автора, лицензии и разрешений для каждого ассета.
+- Pack prompts, voice descriptors и declarative behavior settings загружаются как пассивные данные; они не исполняются при сканировании/активации пакета и становятся доступными соответствующим сервисам только при их включении в фазах 5/7/8/9.
 - Capability report импортированной модели и fallback для отсутствующих rig/face/physics channels.
 - Подключение внешних Character Definition к Registry, созданному в Фазе 2; проверка ID/version и совместимости без создания параллельного реестра персонажей.
 - Локальные пользовательские модели без обязательной раздачи другим клиентам.
@@ -130,7 +131,7 @@
 ### Фаза 5. Provider Gateway и живой диалог
 Задачи:
 - Общий интерфейс LLM-провайдера.
-- Пресеты и назначения по компонентам/NPC.
+- Preset Registry и назначения по компонентам/NPC; в Phase 5 активируется только Main Dialogue preset. Preset slots для gnomes/embedding включаются в Phase 7, Bot — в Phase 8, TTS — в Phase 9; отсутствие будущих consumers/presets не блокирует чат.
 - Поддержка локальных endpoint и облачных API.
 - Тайм-аут, retry, streaming при наличии поддержки.
 - Диалоговый экран и контекст последних N сообщений (default 10).
@@ -172,7 +173,7 @@
 - Совместно подключить Memorizer (History + Thoughts) и Thinker (создаёт/обновляет Thoughts); ThoughtChanged, watermark и защита от stale results проверяются как одна связка.
 - Подключить Judge к candidate pipeline и Diary; Thinker использует Diary только после того, как candidate → Judge → transactional Diary write реально подключены.
 - Подключить Summarizer к finalized Conversation History и доступным Event Feed/Action Memory событиям; Thinker получает Summary через тот же Context Builder.
-- Embedding adapter/profile и независимые provider presets активируемых когнитивных гномиков: Memorizer, Judge, Thinker, Summarizer. Bot-specific provider preset подключается вместе с самим Bot в Фазе 8.
+- Embedding adapter/profile и независимые provider presets активируемых когнитивных гномиков: Memorizer, Judge, Thinker, Summarizer. Bot-specific provider preset подключается вместе с самим Bot в Фазе 8. В этой фазе становятся активными соответствующие gnome destinations Provider Gateway; Main Dialogue preset сохраняет независимость.
 - Affective Presentation Mapper: валидированные emotion/intensity/attention/desire состояния Thinker передаются в Face/Body Controller с smoothing, expiry и fallback; не давать LLM управление костями.
 - Goal proposals Thinker сохраняются в durable Goal Proposal Inbox/Outbox через Storage Facade с ID/scope/evidence/expiry/status=PENDING; запись связана с Thought, это не седьмое хранилище памяти. В этой фазе они не исполняются и не меняют игровой мир; Phase 8 claims/validates их атомарно и не исполняет повторно.
 - Ручной запуск/отладка из меню: permission check, preview/dry-run, status, cancel/retry и безопасная диагностика.
@@ -185,7 +186,7 @@
 Задачи:
 - Расширить Event Feed Фазы 7 до полного World Observer: event catalogue, actor/target/outcome/location/time/visibility, relevance, durability, deduplication и coalescing.
 - Реализовать Goal Scheduler, который забирает pending proposals из Goal Proposal Inbox, проверяет expiry, evidence, preconditions, priority, dependencies и правила прерывания.
-- Реализовать Bot как пятого гномика: преобразование выбранной цели в typed action plan; его асинхронный inference dispatch использует Gnome Task Scheduler, а игровые цели и actions — отдельный Goal Scheduler/Action Runtime.
+- Реализовать Bot как пятого гномика: преобразование выбранной цели в typed action plan; его асинхронный inference dispatch использует Gnome Task Scheduler, а игровые цели и actions — отдельный Goal Scheduler/Action Runtime. Здесь активируется Bot-specific provider preset, если LLM используется для planning.
 - Подключить отдельный Bot provider preset/capability validation, если Bot использует LLM для планирования; исполнение validated plan не вызывает модель на каждом игровом тике.
 - Одновременно реализовать Action Registry, Action Validator и Action Executor: whitelist, schema, permissions, distance/range, cooldown, world preconditions, idempotency, cancellation и uncertain-result reconciliation.
 - Реализовать Navigation/Follow: pathfinding, moving target, repath, stuck detection, obstacles, unloaded chunks, stop/cancel и arrival predicate.
@@ -200,7 +201,7 @@
 
 ### Фаза 9. Голос
 Задачи:
-- TTS adapters и голосовые пресеты.
+- TTS adapters и голосовые пресеты; здесь активируется TTS destination/preset Provider Gateway, ранее существовавший только как конфигурационный slot.
 - Назначение голоса каждому NPC.
 - Очередь аудио, прерывание и кэш.
 - Воспроизведение на клиентах.
