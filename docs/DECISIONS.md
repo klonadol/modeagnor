@@ -11,6 +11,7 @@
 | [ADR-0005](decisions/ADR-0005-optional-integrations.md) | Интеграции | Accepted | Create и другие интеграции остаются необязательными |
 | [ADR-0006](decisions/ADR-0006-character-visual-quality-and-physics.md) | Качество 3D и физика | Accepted target; renderer pending | Цель — stylized anime action-RPG и secondary physics уровня ZZZ; конкретный renderer выбирается после прототипа |
 | [ADR-0007](decisions/ADR-0007-procedural-motion-engine.md) | Процедурное движение | Accepted direction; solvers pending | Семантические задачи, Whole Body Controller, IK, процедурная локомоция, host-side physics; клипы остаются строительным материалом |
+| [ADR-0008](decisions/ADR-0008-reuse-external-character-assets.md) | Внешние модели | Accepted | Готовые модели из интернета и пользовательских библиотек — приоритет; Blender используется для адаптации; права и синхронизация учитываются отдельно |
 
 ## Как регистрировать решение
 
