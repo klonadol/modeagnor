@@ -146,6 +146,8 @@ Player identity должна основываться на UUID, а ник ис�
 
 **Поэтапное подключение источников:** Context Builder — один сервис, создаваемый вместе с диалогом в Фазе 5. Сначала он использует Character Definition/system policy, Runtime/Relationship snapshot и Conversation History. В Фазе 6 он подключает Lorebook, Diary, Action Memory, Thoughts и Daily Summary через расширяемый Context Source Registry. Для источника различаются состояния `NOT_YET_ENABLED`, `AVAILABLE_EMPTY`, `AVAILABLE_WITH_DATA`, `TEMPORARILY_UNAVAILABLE` и `FORBIDDEN`; отсутствие ещё не реализованного хранилища нельзя выдавать модели за отсутствие воспоминаний.
 
+Context Builder использует consumer-specific Context Profiles (например, `dialogue` и `thinker`) с отдельными source allowlists, scope, freshness, priority и token budgets. Это один механизм сборки, а не один и тот же prompt для всех задач. Gnome Input Assemblers могут повторно использовать source registry, но их allowlists жёстко ограничены контрактом: Memorizer читает только History + Thoughts, Judge — candidate и scoped Diary retrieval. Они не получают полный диалоговый context.
+
 ### Лорбук
 
 Запись должна поддерживать: ID, название, содержимое, ключевые слова, режим активации, приоритет, область действия, роль отправки (System/User/Assistant), ограничения и метаданные. Семантический поиск зависит от выбранного embedding-провайдера; при его недоступности поведение должно быть явно определено настройкой (например, использовать текстовые триггеры или не активировать семантические записи).
@@ -175,6 +177,8 @@ Thinker не может полноценно потреблять Action Memory 
 ## 6. Gnome Task Scheduler
 
 Гномики — специализированные фоновые сервисы, а не пять бесконечных циклов LLM.
+
+**Не смешивать два планировщика:** Gnome Task Scheduler управляет фоновыми AI worker jobs (очереди, provider concurrency, retry, cancellation); Goal Scheduler управляет игровыми целями NPC, dependencies, preemption и действием в мире. Первый вводится с когнитивными гномиками в Фазе 7; второй — вместе с Bot/Action/Navigation в Фазе 8. Между ними передаются durable goal proposals, а не общая незащищённая in-memory очередь.
 
 **Порядок интеграции:** Фаза 7 совместно реализует Scheduler и четыре когнитивных гномика — Memorizer, Judge, Thinker и Summarizer — вместе с минимальным Event Feed. Их acceptance общий: Memorizer читает Thoughts, которые пишет Thinker; Judge пишет Diary, который читает Thinker; Summarizer обновляет Summary, которую читает Thinker. Ни один из этих сервисов не принимается как законченный изолированный продукт до проверки полного цикла.
 
