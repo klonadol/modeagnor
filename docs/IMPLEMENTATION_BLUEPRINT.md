@@ -53,7 +53,7 @@
 | 0. Технические проверки | Fabric/client/server, каталоги, базовый packet, renderer, IK, gait, skinning/morph/blending/physics, host pose sync, лицензии и модельные тесты | 1–3, 10, 13–15, 20, 22–25 | **Частично.** Компоненты и критерии есть; нужен единый протокол spike, таблица измерений и решение по storage/catalog path |
 | 1. Каркас | Lifecycle, common/server/client, config/catalogs, protocol/versioning, permissions, settings UI, safe logging | 1–3, 15–16, 18–20, 24 | **Частично.** Границы и network security есть; нужно конкретизировать config/data roots, config validation/apply, minimal UI command lifecycle и logging policy |
 | 2. Character Runtime | NPC UUID/definition, create/delete/load, runtime state, relationships per player UUID, world/NPC/player saves, two-player isolation | 3–4, 7, 18, 21, 25 | **Частично.** Основные объекты есть; нужно определить lifecycle state machine, ownership, deletion semantics и согласование world save/load |
-| 3. 3D и visual control | Import готовой модели, retarget/repair, animation state machine, crossfade/masks/additive, Motion Engine, IK, gait, facial control, secondary physics, pose sync | 13–14, 21.4, 23, 25 | **Частично.** Pipeline есть; требуется подробная спецификация animation graph/layer precedence, конкретных solver tests, gait measurements и связи viseme contract с Фазой 9 |
+| 3. 3D и visual control | Import готовой модели, rig/renderer, animation layers, Motion Engine foundation, IK, gait primitives, facial rig capability, secondary physics, pose sync | 13–14, 21.4, 23, 25 | **Частично.** Фаза 3 создаёт технический исполнительный слой и test harness, но не полноценное поведение. Dialogue reactions подключаются в Фазе 5, Thinker affect в Фазе 7, autonomous world motion в Фазе 8, lip-sync в Фазе 9 |
 | 4. Content Packs | Manifest, scan/enable/disable, assets/definitions/prompts, provenance/license, capability report/fallback, priority overrides, checksum/version, safe client policy | 14–15, 19–20 | **Частично.** Validation/sync есть; не были выделены package activation lifecycle, override precedence, enable/disable/rollback и hot-reload boundary |
 | 5. Provider Gateway/dialogue | LLM adapters, independent presets, local/cloud endpoints, timeouts/retry/streaming, last N messages, system prompts/roles, host secrets, dialogue UI | 5–6, 10, 15–16, 24 | **Частично.** API flow есть; нужно явно задать staged durable History: базовые последние N сообщений появляются в Фазе 5, затем расширяются в Фазе 6 без второго конкурирующего хранилища |
 | 6. Шесть хранилищ | Все 6 stores, SQLite/JSON choice, migrations/backups, world/NPC/player isolation, indexes/retention | 7, 19–20, 22, 25 | **Частично.** Scope/transactions/migrations описаны; надо добавить backup/restore/retention lifecycle и переход от Phase 2/5 data без потери данных |
@@ -109,7 +109,7 @@
 2. Протокол простого server→client и client→server state request: version, identity, validation, sequence и error response.
 3. Data root resolver: client game directory, dedicated server directory, permissions, нестандартный game directory и отсутствие доступа к каталогу.
 4. Renderer spike: один готовый rigged anime asset и один static/partial-rig asset; перечень обязательных runtime controls — skinning, bone pose read/write, morph weights, animation blending, procedural overrides, secondary chains.
-5. Motion spike: semantic task contract, look-at/reach/turn, Two-Bone IK, сравнение FABRIK/CCD где применимо, whole-body priority approach, gait и spring-chain.
+5. Motion spike: semantic task contract и renderer/solver feasibility: look-at/reach/turn, Two-Bone IK, сравнение FABRIK/CCD где применимо, whole-body priority approach, gait и spring-chain. Все задачи подаются через scripted/synthetic test driver; это проверяет исполнитель, а не AI-поведение персонажа.
 6. Host-authoritative pose test: один server simulation, два клиента, sequence/interpolation, latency/loss behavior.
 7. Storage spike: сравнение SQLite/JSON для server save lifecycle, transactions, backup/migration, concurrent reads/writes и дальнейших шести stores. До выбора нельзя фиксировать окончательную схему.
 8. Asset/legal record: проверка лицензии и provenance тестовых файлов; при отсутствии пригодного файла — локальный temporary restricted asset по ADR-0008 и запись в register.
@@ -158,15 +158,15 @@
 3. Whole Body Controller: ownership body channels, priority arbitration, preemption, constraints и безопасное освобождение каналов.
 4. Solver interface: Two-Bone IK, foot IK, gaze distribution, pole vectors, joint limits; FABRIK/CCD только там, где подтверждено тестом.
 5. Procedural gait: phase, stride, speed, pelvis/weight transfer, arm counter-swing, starts/stops/turns и transition to authored clips.
-6. Facial pipeline: expression channels, eye/eyelid/brow/jaw, morph control и независимость от выбранного клипа.
-7. Viseme contract: определить входную временную шкалу артикуляции уже в Фазе 3, но источник TTS/audio timing подключить в Фазе 9.
+6. Face/rig capability: expression channels, eye/eyelid/brow/jaw, morph control и независимость от выбранного клипа. Проверяются контроллеры и тестовые позы; смысловое управление эмоциями ещё не подключается.
+7. Задать технический интерфейс facial channels/viseme weights и таймлайна, чтобы renderer его поддерживал. Не реализовывать работающий lip-sync: источником viseme timing станет TTS/audio pipeline Фазы 9.
 8. Secondary physics: solver step, substeps, chains, constraints, collision proxies, clamps, pause/unload/reset и performance budgets.
 9. Pose replication: authoritative root/gameplay state, compact presentation payload, sequence, send rate, interpolation, missing snapshots и version mismatch.
 10. Performance/quality test suite по ADR-0006/0007 на одной и нескольких NPC.
 
-**Артефакты:** rig capability schema, animation/layer graph, solver contracts, motion-task catalogue, facial/viseme interface, pose DTO и renderer benchmark.
+**Артефакты:** rig capability schema, animation/layer graph, solver contracts, motion-task catalogue, Face Controller API, facial/viseme channel schema, pose DTO, scripted test harness и renderer benchmark. Это технический исполнитель без интегрированного AI.
 
-**Design gate:** модель не просто отображается — она проходит полный профиль idle, walk/run, start/stop, turn, look-at, reach, gesture, expressions, layer blending, secondary physics и two-client sync. Неизвестные capabilities дают fallback, а не crash.
+**Design gate:** через scripted test harness модель проходит idle, walk/run, start/stop, turn, look-at, reach, gesture, тестовые expressions, layer blending, secondary physics и two-client sync. Это подтверждает controllability визуального слоя, но НЕ подтверждает живое автономное поведение, осмысленную эмоциональную мимику или lip-sync. Они проверяются после подключения источников в Фазах 5, 7, 8 и 9. Неизвестные capabilities дают fallback, а не crash.
 
 #### Фаза 4 — Content Packs
 
@@ -200,6 +200,8 @@
 
 **Важное staging решение:** Фаза 5 реализует durable minimal Conversation History через общий Storage API — те же message IDs, scope и последовательность, которые будут использоваться далее. Фаза 6 расширяет этот же контракт до полной системы памяти. Не создавать временное второе хранилище истории и не переписывать диалог при добавлении шести stores.
 
+**Связь с визуальным поведением:** после получения и фиксации диалогового события Dialogue Presentation Adapter передаёт Character Runtime ограниченные intents: turn/look_at на говорящего, listening/thinking/speaking state и, при наличии валидной поддерживаемой emotion/speech-act metadata, semantic expression request. Adapter не задаёт кости или произвольные morph weights. При отсутствии metadata используется нейтральная реакция. Это первая реальная реакция на собеседника, но ещё не автономная личность.
+
 **Артефакты:** provider adapter contracts, capability matrix, preset schema, secret lifecycle, dialogue sequence/state machine, conversation message schema и failure cases.
 
 **Design gate:** полный путь UI → server → provider → persisted result → addressed client; timeout не блокирует server thread; приватный контекст не виден другому игроку.
@@ -230,12 +232,14 @@
 5. Thinker: target 30 seconds + event triggers, context snapshot, stale-result rejection, structured Thoughts и goal proposals.
 6. Summarizer: каждые 10 сообщений; previous summary + new range; watermark, idempotency, day boundary и no data loss.
 7. Независимые provider presets для каждого gnome; ошибка одного не блокирует другие.
-8. Manual run/debug UI: permission check, dry-run/preview, task status, cancel/retry policy, sanitized diagnostics; ручной запуск не обходит validators.
+8. Affective/Presentation Bridge: валидированные structured Thinker outputs (emotion, intensity, desire/attention state) переводятся детерминированным mapping в разрешённые face/body intents. Значения Thinker не являются прямыми командами костям и не обходят Task Planner/Action Validator.
+9. Разделить cognitive goal proposals и presentation state: персонаж может выглядеть заинтересованным/уставшим/настороженным без обязательного игрового действия; goal не обязан менять эмоцию.
+10. Manual run/debug UI: permission check, dry-run/preview, task status, cancel/retry policy, sanitized diagnostics; ручной запуск не обходит validators.
 9. **Bot в этой фазе:** фиксируется service contract, typed plan schema и связь с Goal Scheduler/Motion Engine; полный action execution не реализуется раньше Фазы 8, чтобы не смешивать memory pipeline с world mutation.
 
-**Артефакты:** scheduler state machine, gnome input/output schemas, provider assignment matrix, task retry matrix, manual diagnostics UI flow и end-to-end memory tests.
+**Артефакты:** scheduler state machine, gnome input/output schemas, provider assignment matrix, task retry matrix, manual diagnostics UI flow, affect-to-expression mapping contract и end-to-end memory/Thinker tests.
 
-**Design gate:** Memorizer не обходит Judge; повтор не создаёт duplicates; Thinker не вызывает actions напрямую; stale results отбрасываются; один provider failure изолирован.
+**Design gate:** Memorizer не обходит Judge; повтор не создаёт duplicates; Thinker не вызывает world actions напрямую; stale results отбрасываются; emotion/attention outputs доходят до Face/Body Controller через валидированный mapping; один provider failure изолирован.
 
 #### Фаза 8 — автономное поведение и действия
 
@@ -249,9 +253,9 @@
 7. Event feedback: действие NPC → observed outcome → Action Memory/Thinker; предотвращение бесконечного self-trigger loop.
 8. Multiplayer visibility and permission policy for autonomous actions.
 
-**Артефакты:** event catalogue, goal/action schemas, whitelist matrix, state transitions, navigation failure taxonomy и combined-motion acceptance suite.
+**Артефакты:** event catalogue, goal/action schemas, whitelist matrix, state transitions, navigation failure taxonomy, brain-to-motion orchestration graph и combined-motion acceptance suite.
 
-**Design gate:** NPC самостоятельно выполняет разрешённые задачи; препятствие/отмена/изменение цели корректно обрабатывается; ни одна модель не исполняет произвольную команду; фактический outcome подтверждён миром.
+**Design gate:** Thinker/Bot intent проходит Goal Scheduler → Action Validator → Navigation/Action Executor → Motion Engine; NPC самостоятельно выполняет разрешённые задачи; препятствие/отмена/изменение цели корректно обрабатывается; gaze/gesture/locomotion/emotion сочетаются и прерываются без развала позы; ни одна модель не исполняет произвольную команду; фактический outcome подтверждён миром.
 
 #### Фаза 9 — голос
 
@@ -262,7 +266,7 @@
 4. Cache key, cache scope, invalidation при смене текста/голоса/провайдера, size limits и storage/retention.
 5. Audio transport/recipient policy: адресный или tracking broadcast, permissions, bandwidth, packet loss и fallback.
 6. Playback metadata: start timestamp, duration, voice/model ID и viseme timeline.
-7. Face/Motion bridge: использование viseme timeline, fallback без timing, отсутствие конфликта с expression/lip-sync layers.
+7. Face/Motion bridge: использование реального TTS/audio viseme timeline, fallback без timing и отдельное смешивание артикуляции с эмоциональной мимикой.
 8. Failure isolation: TTS недоступен — текст уже сохранён и виден; очередь не блокирует chat.
 
 **Артефакты:** audio state machine, cache/retention policy, network DTO, playback sync tests и viseme mapping.
@@ -312,7 +316,11 @@
 - Phase 5 создаёт первую durable Conversation History через общий storage contract; Phase 6 расширяет её, а не заменяет.
 - Phase 6 завершает storage contracts до запуска фоновых gnomes в Phase 7.
 - Phase 7 фиксирует Bot API/plan schema; Phase 8 включает реальное выполнение действий.
-- Phase 3 формирует facial/viseme interface; Phase 9 подключает к нему TTS timing.
+- Phase 3 создаёт face/rig/viseme capability и API; управляет ими только тестовый драйвер.
+- Phase 5 подключает реакции на диалог: взгляд на говорящего, listening/speaking state и ограниченные conversational expressions.
+- Phase 7 подключает эмоциональное/внутреннее состояние Thinker к face/body presentation intents.
+- Phase 8 соединяет Brain/Goal/Bot/Observer с Navigation и Motion Engine для живого автономного поведения.
+- Phase 9 подключает TTS viseme timeline к мимике и аудио playback; до этого lip-sync не считается реализованным.
 - Phase 10 стабилизирует standalone companion; Phase 11 переносит authored world и добавляет optional integrations.
 
 ### 0.8 Реестр пробелов, выявленных сверкой
@@ -332,9 +340,22 @@
 | GAP-11 | Long-session/release compatibility and distribution audit были слишком общими | Release matrix, soak tests, rollback and public audit | 10 |
 | GAP-12 | Optional addon API не имел отдельного контракта в Blueprint | Новый раздел 27: extension/addon API | 1/8 design; 11 implementation |
 | GAP-13 | Перенос авторского мира не имел безопасного migration workflow | Новый раздел 28: inventory, mapping, dry-run, validation, rollback | 11 |
-| GAP-14 | Не были явным образом связаны facial rig Фазы 3 и TTS Фазы 9 | Общий viseme timeline contract и staged provider integration | 3/9 |
+| GAP-14 | Не были разделены техническая возможность мимики и её смысловые источники | Face Controller/test harness Фазы 3; dialogue reactions Фазы 5; Thinker affect Фазы 7; autonomous intents Фазы 8; TTS lip-sync Фазы 9 | 3/5/7/8/9 |
 
 Этот реестр не означает, что соответствующие функции реализованы. Исправление состоит в том, что проектирование теперь привязано к нужной фазе и имеет проверяемый выход.
+
+
+### 0.9 Принципиальная граница: исполнитель движения не является мозгом персонажа
+
+Agnor Motion Engine отвечает за то, как выполнить уже принятое намерение. Он не определяет самостоятельно, что персонаж хочет, почему он это хочет и какую эмоцию должен испытывать. Источники намерений подключаются поэтапно:
+
+- До диалога и гномиков (Фазы 0–4) Motion Engine и Face Controller проверяются только технически: scripted/synthetic test harness подаёт заранее заданные задачи и состояния. Это не поведение живого NPC и не релизная автономность.
+- После диалога (Фаза 5) появляются первые реакции на реального собеседника: повернуться, смотреть, слушать, говорить и показывать ограниченную валидированную conversational expression.
+- После гномиков (Фаза 7) Thinker предоставляет структурированное внутреннее состояние, эмоции и внимание, а Presentation Mapper превращает их в выражение лица и микродвижения. Это даёт непрерывное выразительное состояние, но ещё не полную самостоятельную навигацию.
+- После Event Observer, Bot, Goal Scheduler и Navigation (Фаза 8) намерения связываются с реальными событиями и действиями мира. Здесь появляется полноценное автономное движение: подойти, следовать, остановиться, повернуться, взаимодействовать, прерываться и выбирать новое поведение.
+- После TTS (Фаза 9) подключается синхронизация губ по реальному audio/viseme timeline.
+
+Нельзя объявлять живое поведение, эмоциональную мимику или lip-sync готовыми после Фазы 3. Фаза 3 создаёт исполнительную базу и тестирует её управляемость. Поведенческая интеграция приходит только вместе с источниками решений соответствующих фаз.
 
 ## 1. Системная модель и инварианты
 
@@ -723,6 +744,45 @@ Secondary physics ограничена художественными chains/pro
 DTO включает NPC/world identity, sequence, server timestamp/tick, protocol version, model/content version, root transform, motion task state и минимальный pose/control payload. Не отправлять полный skeleton каждый tick без измерений.
 
 Клиент проверяет version/identity/sequence, отбрасывает stale snapshots, интерполирует, безопасно обрабатывает packet loss и сбрасывает несовместимый pose cache при смене модели. Клиентская поза никогда не отправляется как authoritative.
+
+
+### 13.5 Поэтапное подключение Motion Engine к источникам намерений
+
+Motion Engine не является AI и не создаёт самостоятельные цели. Его runtime API получает типизированные intents только от разрешённых producers. Интеграция разделена:
+
+| Фаза | Источник | Что реально подключается | Чего ещё нет |
+|---|---|---|---|
+| 0 | Scripted/synthetic test harness | Проверка renderer/pose/task APIs, IK, gait и physics | NPC brain, живые решения, autonomous actions |
+| 3 | Test harness + rig capability | Pose pipeline, animation layers, procedural primitives, Face Controller API, test expressions, server snapshots | Диалоговые реакции, Thinker affect, TTS lip-sync, world navigation |
+| 5 | Dialogue Orchestrator / Dialogue Presentation Adapter | Поворот к говорящему, gaze, listening/thinking/speaking states, валидированные conversational expressions и простые жесты | Долговременное автономное настроение/планы и самостоятельная навигация |
+| 7 | Thinker / validated Thoughts | Emotion/attention/desire states → ограниченные presentation intents; планы → Goal Scheduler | Произвольное исполнение цели; непроверенные world actions |
+| 8 | World Observer / Goal Scheduler / Bot / Action Executor / Navigation | Autonomous motion tasks, follow, walk_to, interaction reach, combined tasks, preemption и реакция на события | Lip-sync от TTS, если TTS ещё не подключён |
+| 9 | TTS / audio playback timeline | Viseme-driven lip-sync и синхронизация речи с лицом/аудио | — |
+
+#### Разделение потоков управления
+
+1. **Cognitive flow:** событие/диалог → Context Builder → LLM/gnomes → validated state/goal proposal.
+2. **Presentation flow:** validated emotion/speech state → Presentation Mapper → Face/Body Intent → Pose Layer Mixer.
+3. **Action flow:** validated goal → Goal Scheduler → Bot plan → Action Validator → Navigation/Action Executor → semantic Motion Task.
+4. **Speech flow:** finalized dialogue text → TTS → audio/viseme timeline → Face Controller + client audio playback.
+
+Эти потоки могут синхронизироваться, но не сливаются в один. Эмоция не является командой перемещения; goal не диктует кости; аудиофайл не определяет содержание мысли.
+
+#### Dialogue Presentation Adapter — Фаза 5
+
+Adapter принимает только завершённое/подтверждённое событие диалога и optional structured metadata, прошедшую schema validation и allowlist. Он выбирает допустимые состояния listening, thinking, speaking, neutral и разрешённые expression categories. Конкретные bone rotations и morph weights остаются ответственностью Face Controller/renderer. При отсутствующей metadata используется нейтральная мимика и gaze behavior по доступным событиям. Частичный streaming output не должен вызывать резкие или необратимые emotion transitions.
+
+#### Affective Presentation Mapper — Фаза 7
+
+Thinker сохраняет структурированные эмоции, интенсивность, внимание и желания с provenance, confidence и validity/expiry. Mapper переводит только разрешённые категории в presentation state с smoothing, hysteresis, blend durations и reset rules. Он не читает сырой prompt и не получает право исполнять actions. При stale/contradictory Thoughts применяется безопасное neutral/last-valid state, а не случайная эмоция.
+
+#### Autonomous Motion Bridge — Фаза 8
+
+Bot и Goal Scheduler передают семантические задачи через Motion Task API только после server validation. Navigation является источником path/velocity; Motion Engine — исполнителем locomotion/body pose. Event interruption отменяет или меняет связанные task IDs по заданной policy. Результат возвращается в Goal Scheduler/Action Memory через completion events. Цикл не должен запускать повторение одной и той же неудачной цели.
+
+#### Lip-sync — Фаза 9
+
+Face Controller принимает viseme weights/time intervals от TTS provider либо утверждённого audio alignment stage. Lip-sync layer смешивается с emotion/expression layers через независимые каналы/маски. При отсутствии timing качество синхронизации явно ограничено; случайные mouth movements не выдаются за lip-sync.
 
 ## 14. Asset Importer и Content Packs
 
