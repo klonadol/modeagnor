@@ -141,16 +141,17 @@
 **Проектируем:**
 1. NPC identity: UUID, Character Definition ID/version, world association, ownership/creator и правила уникальности.
 2. Runtime state machine: Constructing → Active → Suspended/Unloaded → Removing → Removed/Failed; допустимые переходы и восстановление.
-3. Creation flow: permission → definition validation → resource checks → factory → initial persistence → spawn snapshot → idempotent acknowledgement.
+3. Creation flow: permission → Character Definition schema/ownership validation → server-side Runtime Factory → initial persistence → spawn snapshot → idempotent acknowledgement. Не требовать наличия renderer, client asset или полного rig capability для создания/активации server NPC.
 4. Delete flow: удаление entity, сохранение/удаление памяти, подтверждение пользователя, каскадные зависимости и восстановление после сбоя.
 5. Relationship State: ключ NPC UUID + Player UUID; ник только display; lifecycle игрока и правила удаления/retention.
 6. World/NPC/player persistence: границы save data, atomic writes, load ordering, world isolation и backup strategy.
 7. Concurrency: единственный владелец runtime state конкретного NPC; stale callback после unload не применяет старые изменения.
 8. Базовый Character Definition schema + Registry: встроенный/dev definition source для первой NPC, стабильный ID/version и typed references на prompts/assets. Внешние Content Packs позже подключаются как дополнительный source к тому же Registry; не создавать отдельную pack-only schema.
+9. Разделить server definition readiness и client presentation readiness: Phase 2 сохраняет model/asset references и их expected IDs/version, но renderer не является prerequisite для NPC runtime. До Phase 3 клиент отображает технический placeholder/diagnostic presentation state `PRESENTATION_NOT_READY`; server-side identity, behavior state и persistence продолжают работать.
 
 **Артефакты:** NPC lifecycle/state diagram, Character Definition schema, ownership rules, relationship schema, save/load/delete transaction map и два-player isolation scenarios.
 
-**Design gate:** NPC и состояние восстанавливаются; профили двух игроков не смешиваются; удаление не приводит к случайному удалению общих данных; повтор команды создания/удаления не выполняет side effect дважды.
+**Design gate:** NPC и её server state создаются/восстанавливаются независимо от renderer; два клиента видят один и тот же временный placeholder, пока Phase 3 renderer не подключён; профили двух игроков не смешиваются; удаление не затрагивает чужие данные; повтор create/delete не повторяет side effect. Полноценная модель не входит в критерий Phase 2.
 
 #### Фаза 3 — 3D, визуальное управление и Motion Engine
 
@@ -173,7 +174,7 @@
 #### Фаза 4 — Content Packs
 
 **Проектируем:**
-1. Каталог пакетов, manifest schema, package ID/version, supported Agnor API version и dependencies.
+1. Каталог пакетов, declarative Content Pack manifest/schema version, package ID/version, supported Agnor/Content Pack compatibility range и dependencies. Не смешивать эту версию с executable Addon API.
 2. Scan → validate → stage → resolve → activate; отдельные enable/disable/remove и rollback transitions.
 3. Priority/override resolution: порядок base pack, dependency pack, user pack и explicit override; детерминированное разрешение конфликтов ID/resources.
 4. Package data model: character definitions, prompt templates, model/texture/animation resources, facial profiles и declarative behavior settings.
