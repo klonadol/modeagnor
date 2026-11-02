@@ -27,6 +27,7 @@
 8. Semantic Lorebook retrieval зависел от Embedding adapter Phase 7, а само хранилище появлялось в Phase 6.
 9. Публичный Addon API мог фиксироваться раньше, чем сформированы реальные Action/Goal/Event contracts.
 10. Версия Content Pack могла быть ошибочно понята как версия executable Addon API.
+11. Первая NPC создавалась в Phase 2 до продуктового renderer Phase 3, но не было явной гарантии, что server Character Runtime независим от визуального слоя.
 
 ## 3. Принятые исправления по зависимостям
 
@@ -117,6 +118,13 @@ Unit/contract tests компонентов остаются отдельными
 - Публичная семантика Action/Goal/Event API определяется после рабочего runtime Phase 8 и замораживается после compatibility hardening Phase 10.
 - Addon implementation остаётся в Phase 11.
 
+### 3.11 Server Character Runtime до renderer
+
+- Phase 2 создаёт NPC UUID, Character Definition, Runtime/Relationship state и persistence на сервере; наличие renderer, rig или локального model file не является prerequisite для server activation.
+- Если визуальный слой ещё не готов, server spawn snapshot обозначает presentation status `PRESENTATION_NOT_READY`, а клиенты показывают placeholder.
+- Phase 3 добавляет Character Presentation Adapter, который подключает renderer/rig/pose controller к уже существующему NPC UUID и server presentation snapshots. Он не создаёт вторую entity identity/lifecycle и не требует переписывать Character Runtime.
+- Для Phase 2 это явное ограничение: NPC logical/runtime lifecycle проверяется с placeholder; полноценная модель и визуальное управление принимаются в Phase 3.
+
 ## 4. Группы обязательной совместной реализации
 
 | Фаза | Компоненты | Почему нельзя принимать независимо |
@@ -124,6 +132,7 @@ Unit/contract tests компонентов остаются отдельными
 | 7 | Event Feed Foundation + Gnome Task Scheduler + Memorizer + Judge + Thinker + Summarizer + Affective Mapper | Взаимные чтение/запись Thoughts, Diary, Summary и Action Memory образуют единый cognition/memory cycle |
 | 8 | Full World Observer + Goal Scheduler + Bot + Action Registry/Validator/Executor + Navigation + Motion Engine bridge | Замкнутый цикл от намерения до действия и фактического результата |
 | 9 | TTS generation + audio task/queue + playback clock/transport + viseme timeline + Face Controller | Lip-sync нельзя подтвердить без синхронного end-to-end audio playback |
+| 2 → 3 | Server Character Runtime + client placeholder (Phase 2), затем Character Presentation Adapter + renderer binding (Phase 3) | NPC server identity/persistence должна работать до renderer; adapter привязывает визуальный слой к тому же UUID, а не создаёт второй NPC |
 
 ## 5. Правило готовности
 
@@ -138,8 +147,8 @@ Unit/contract tests компонентов остаются отдельными
 
 | Путь | Изменение |
 |---|---|
-| docs/IMPLEMENTATION_BLUEPRINT.md | Добавлена dependency matrix 0.10, правило готовности 0.11, новые GAP-15…GAP-21, unified registry/storage/context staging, co-implementation Phase 7/8/9, goal outbox, scheduler distinction, embedding and API version staging |
-| docs/ROADMAP.md | Фазы 1/2/4/5/6/7/8/11 уточнены по producer/consumer dependency; четыре cognitive gnomes в Phase 7; Bot/full autonomy в Phase 8 |
+| docs/IMPLEMENTATION_BLUEPRINT.md | Добавлена dependency matrix 0.10, правило готовности 0.11, новые GAP-15…GAP-22; GAP-22 фиксирует независимость Phase 2 NPC Runtime от Phase 3 renderer, unified registry/storage/context staging, co-implementation Phase 7/8/9, goal outbox, scheduler distinction, embedding and API version staging |
+| docs/ROADMAP.md | Фазы 1/2/3/4/5/6/7/8/11 уточнены по producer/consumer dependency; четыре cognitive gnomes в Phase 7; Bot/full autonomy в Phase 8 |
 | docs/ARCHITECTURE.md | Добавлены Character Definition Registry staging, Context Profiles, Event Feed dependency, distinction of schedulers и общий dependency policy |
 | docs/decisions/ADR-0003-content-packs.md | Разделены Content Pack schema version и executable Addon API version |
 | docs/decisions/ADR-0004-memory-pipeline.md | Зафиксированы совместная активация memory/gnome cycle, Event Feed, Goal Proposal Outbox и scheduler distinction |
@@ -157,7 +166,7 @@ Unit/contract tests компонентов остаются отдельными
 | Fetch current ROADMAP/Blueprint/Architecture/ADRs | PASS | Изучены изменённые документы и текущие контракты |
 | Dependency mapping | PASS (documentation) | Для основных producer/consumer chains определены фазы и стадии активации |
 | Joint implementation groups | PASS (documentation) | Явно назначены совместные Phase 7/8/9 vertical integrations |
-| Cross-document consistency | PENDING FINAL VERIFY | Требуется итоговое чтение после создания отчёта и журнала |
+| Cross-document consistency | PASS (documentation) | Финально перечитаны Blueprint, Roadmap, Architecture, ADR-0003/0004/0005, Index, report и journal; Phase 2 placeholder ↔ Phase 3 adapter также согласованы |
 | Runtime implementation/tests | НЕ ПРОВЕРЕНО | Изменения только документационные; код проекта не реализован |
 
 ## 8. Оставшиеся технические ограничения
