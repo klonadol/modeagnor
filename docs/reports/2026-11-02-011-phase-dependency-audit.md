@@ -15,28 +15,27 @@
 
 ## 2. Основной вывод
 
-Обнаружено несколько дополнительных dependency gaps. Они исправлены в документации:
+Обнаружены producer/consumer и sequencing gaps; для каждого исправлена документация и назначена фаза подготовки/активации:
 
 1. Character Definition мог получить один формат в Phase 2 и второй — в Content Packs Phase 4.
 2. Context Builder Phase 5 ссылался на шесть хранилищ, которые появляются только в Phase 6.
 3. Thinker Phase 7 использовал Action Memory до появления источника событий.
-4. Memorizer, Thinker, Judge и Summarizer имеют циклические зависимости и не должны приниматься как четыре несвязанные функции.
-5. Thinker создавал goal proposals, но Goal Scheduler-потребитель появлялся только в Phase 8.
-6. Bot зависел от Goal Scheduler, Action Validator/Executor и Navigation, но его место было описано как часть Phase 7.
-7. Был риск смешать Gnome Task Scheduler и Goal Scheduler, хотя они управляют разными типами задач.
-8. Semantic Lorebook retrieval зависел от Embedding adapter Phase 7, а само хранилище появлялось в Phase 6.
-9. Публичный Addon API мог фиксироваться раньше, чем сформированы реальные Action/Goal/Event contracts.
-10. Версия Content Pack могла быть ошибочно понята как версия executable Addon API.
-11. Первая NPC создавалась в Phase 2 до продуктового renderer Phase 3, но не было явной гарантии, что server Character Runtime независим от визуального слоя.
-12. Dialogue Phase 5 создавала downstream events до появления gnome workers Phase 7; без durable outbox они могли потеряться.
-13. Один общий event acknowledgement мог позволить одному gnome consumer подтвердить message event за остальных.
-14. Phase 2 memory/task scopes могли быть ошибочно реализованы как actual stores/queues до их фаз 6–8.
-15. Различие между world events для Action Memory и message events для гномиков требовало явной границы, иначе диалоги могли дублироваться в Action Memory.
-16. Content Packs могли содержать prompts/voice/behavior descriptors до появления соответствующих consumers и случайно пытаться активировать их раньше времени.
-17. Provider Gateway Phase 5 мог требовать отдельные gnome/Embedding/Bot/TTS presets до появления самих consumers.
-18. Event Feed Phase 7 мог неявно обещать реконструкцию world events до своей активации, хотя producer ещё не существовал.
-16. Content Packs могли содержать prompts/voice/behavior descriptors до появления соответствующих consumers и случайно пытаться активировать их раньше времени.
-17. Provider Gateway Phase 5 мог требовать отдельные gnome/Embedding/Bot/TTS presets до появления самих consumers.
+4. Memorizer, Thinker, Judge и Summarizer имеют взаимные producer/consumer зависимости.
+5. Thinker создавал goal proposals без готового Goal Scheduler consumer в Phase 8.
+6. Bot зависит от Goal Scheduler, Action Validator/Executor и Navigation и не может считаться готовым до совместной реализации Phase 8.
+7. Gnome Task Scheduler и Goal Scheduler управляют разными типами задач и не должны смешиваться.
+8. Semantic Lorebook retrieval зависит от Embedding adapter Phase 7; Phase 6 поддерживает только non-semantic activation.
+9. Публичный Addon API нельзя фиксировать до рабочих Action/Goal/Event contracts.
+10. Content Pack schema version и executable Addon API version — разные контракты.
+11. Первая NPC создаётся в Phase 2 до renderer Phase 3; server Character Runtime должен быть независим от визуального слоя.
+12. Dialogue Phase 5 создаёт downstream events до активации gnome workers Phase 7; нужен transactional durable outbox.
+13. Outbox delivery должна быть независимой по паре event ID + consumer ID.
+14. Phase 2 memory/task scope keys не должны превращаться в преждевременные stores/queues/workers.
+15. World events для Action Memory и message events для гномиков должны оставаться разными потоками.
+16. Content Packs могут содержать prompts/voice/behavior descriptors раньше соответствующих consumers; они должны оставаться пассивными данными.
+17. Provider Gateway Phase 5 не должен требовать gnome/Embedding/Bot/TTS presets раньше consumers.
+18. Event Feed Phase 7 не может реконструировать world events, произошедшие до его активации.
+19. Summarizer threshold «каждые 10 сообщений» не определял canonical counting unit; History/Outbox/UI могли считать разные диапазоны.
 
 ## 3. Принятые исправления по зависимостям
 
@@ -167,6 +166,15 @@ Unit/contract tests компонентов остаются отдельными
 - События до activation не реконструируются задним числом и не выдаются за воспоминания NPC.
 - Диалоговая история до Phase 7 обрабатывается отдельно через durable outbox и остаётся Conversation History.
 
+### 3.17 Canonical message count и consumer trigger policy
+
+- Одна durable Conversation History message record считается одним сообщением: accepted inbound player message = 1, finalized assistant reply = 1. Streaming partial, system prompt, transport retry и uncommitted interrupted partial не считаются.
+- Default Summary threshold — каждые 10 committed records, range определяется по monotonic sequence/watermark. Это решение фиксируется до реализации Summarizer, чтобы History, Outbox и Summary не считали разные единицы.
+- Memorizer batch-ит contiguous finalized History ranges, а не вызывает LLM на каждый chunk/retry.
+- Summarizer учитывает каждый committed record, но создаёт LLM task только при пересечении threshold; previous summary и watermark фиксируют новый диапазон.
+- Thinker запускается по ConversationTurnFinalized (после финального ответа NPC), значимым world/NPC events и периодическому интервалу около 30 секунд; частые triggers coalesce-ятся до одной pending task на NPC/scope.
+- Outbox delivery становится ENQUEUED только атомарно с durable Gnome Task creation/update либо durable aggregation/watermark update. Worker execution имеет отдельные task status/retry.
+
 ## 4. Группы обязательной совместной реализации
 
 | Фаза | Компоненты | Почему нельзя принимать независимо |
@@ -190,11 +198,11 @@ Unit/contract tests компонентов остаются отдельными
 
 | Путь | Изменение |
 |---|---|
-| docs/IMPLEMENTATION_BLUEPRINT.md | Добавлена dependency matrix 0.10, правило готовности 0.11, GAP-15…GAP-28; последние уточняют renderer staging, scope keys, per-consumer dialogue outbox, passive pack resources, staged Provider presets и baseline Event Feed activation, unified registry/storage/context staging, co-implementation Phase 7/8/9, goal outbox, scheduler distinction, embedding and API version staging |
+| docs/IMPLEMENTATION_BLUEPRINT.md | Добавлена dependency matrix 0.10, правило готовности 0.11, GAP-15…GAP-29; последние уточняют renderer staging, scope keys, per-consumer dialogue outbox, passive pack resources, staged Provider presets и baseline Event Feed activation, unified registry/storage/context staging, co-implementation Phase 7/8/9, goal outbox, scheduler distinction, embedding and API version staging |
 | docs/ROADMAP.md | Фазы 1/2/3/4/5/6/7/8/11 уточнены по producer/consumer dependency; четыре cognitive gnomes в Phase 7; Bot/full autonomy в Phase 8 |
 | docs/ARCHITECTURE.md | Добавлены Character Definition Registry staging, server NPC/renderer decoupling, Context Profiles, Phase 5 dialogue outbox with per-consumer delivery, Event Feed activation baseline, scope-key staging и distinction of schedulers |
 | docs/decisions/ADR-0003-content-packs.md | Разделены Content Pack schema version и executable Addon API version; prompts/voice/behavior resources определены как пассивные данные с consumer activation в фазах 5/7/8/9 |
-| docs/decisions/ADR-0004-memory-pipeline.md | Зафиксированы совместная активация memory/gnome cycle, Event Feed, per-consumer dialogue outbox delivery, Goal Proposal Outbox и scheduler distinction |
+| docs/decisions/ADR-0004-memory-pipeline.md | Зафиксированы совместная активация memory/gnome cycle, Event Feed, per-consumer dialogue outbox delivery, canonical message count, per-gnome trigger policy, Goal Proposal Outbox и scheduler distinction |
 | docs/decisions/ADR-0005-optional-integrations.md | Публичный Addon API стабилизируется после Phase 8 и freeze Phase 10; addons в Phase 11 |
 | docs/INDEX.md | Назначение Blueprint уточнено как карта producer/consumer и co-implementation dependencies |
 | docs/reports/2026-11-02-011-phase-dependency-audit.md | Этот отчёт |
@@ -211,7 +219,8 @@ Unit/contract tests компонентов остаются отдельными
 | Joint implementation groups | PASS (documentation) | Явно назначены совместные Phase 7/8/9 vertical integrations |
 | Cross-phase durable event delivery | PASS (documentation) | Phase 5 outbox is durable; Phase 7 consumers claim/replay independently per event_id + consumer_id; dialogue messages remain in History, not Action Memory |
 | Staged pack/provider activation | PASS (documentation) | Phase 4 packs register passive prompt/behavior/voice data; Phase 5 activates Main Dialogue only; gnome/Embedding, Bot and TTS presets activate with consumers in phases 7/8/9 |
-| Cross-document consistency | PASS (documentation) | Финально перечитаны Blueprint, Roadmap, Architecture, ADR-0003/0004/0005, Index, report и journal; Phase 2 placeholder ↔ Phase 3 adapter, Phase 5 outbox ↔ Phase 7 consumers и per-consumer delivery state согласованы |
+| Consumer trigger ordering | PASS (documentation) | Memorizer range batching, Summarizer threshold count and Thinker turn-finalized/periodic triggers are distinct; outbox acknowledgment is atomic with durable task/aggregation state |
+| Cross-document consistency | PASS (documentation) | Финально перечитаны Blueprint, Roadmap, Architecture, ADR-0003/0004/0005, Index, report и journal; Phase 2 placeholder ↔ Phase 3 adapter, Phase 5 outbox ↔ Phase 7 consumers, per-consumer delivery и canonical Summary counting согласованы |
 | Runtime implementation/tests | НЕ ПРОВЕРЕНО | Изменения только документационные; код проекта не реализован |
 
 ## 8. Оставшиеся технические ограничения
