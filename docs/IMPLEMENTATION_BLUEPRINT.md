@@ -222,6 +222,7 @@
 6. Retention: срок/условие для History, Action Memory, Thoughts, pending candidates, Diary и Summary; ничего не удалять без явной policy.
 7. Embedding index lifecycle: provider/model/version, rebuild/reindex, stale vector handling и fallback. Сам adapter подключается в Phase 7, но storage interface планируется заранее.
 8. Day/period abstraction для Daily Summary как open decision, который должен быть закрыт до реализации Summary в Phase 7.
+8a. В Phase 6 доступны exact/keyword/Always Lorebook activations; semantic-only retrieval явно остаётся NOT_YET_ENABLED до Embedding adapter Phase 7. Нельзя вернуть пустой semantic result и скрыть, что capability ещё не подключена.
 9. Все stores создаются через Storage Facade, уже используемый Phase 2 и Phase 5. History переиспользует существующие message IDs/scope/sequence; отдельных БД или временных форматов не создавать.
 10. Action Memory storage schema/API готовится здесь, но event-feed writer ещё не подключён; функциональность хранилища принимается только после producer Phase 7.
 11. Thoughts schema/API готовится здесь, но runtime writer/reader cycle появляется только в совместной интеграции Phase 7.
@@ -238,7 +239,7 @@
 3. Совместно подключить Memorizer и Thinker: Memorizer читает History + Thoughts, Thinker создаёт/обновляет Thoughts. Их contracts, watermark, ThoughtChanged trigger и stale-result reconciliation проверяются вместе; Memorizer нельзя принимать как законченную функцию до появления Thinker writer.
 4. Подключить Judge к candidate pipeline и Diary transactionally. Thinker читает утверждённый Diary; поэтому цепочка Memorizer → Judge → Diary → Thinker принимается только как единая интеграция.
 5. Подключить Summarizer к finalized Conversation History и доступным Event Feed/Action Memory events; Thinker получает предыдущую Summary. SummaryUpdated не запускает бесконечный trigger loop.
-6. Подключить независимые provider presets каждого гномика и Embedding adapter/profile (model/index version, reindex, fallback).
+6. Подключить независимые provider presets для активируемых в этой фазе когнитивных гномиков (Memorizer, Judge, Thinker, Summarizer) и Embedding adapter/profile (model/index version, reindex, fallback). Bot-specific preset/capability вводится вместе с runtime Bot в Phase 8.
 7. Подключить Affective/Presentation Mapper: validated Thinker outputs (emotion/intensity/attention/desire) переводятся в разрешённые face/body intents с smoothing, hysteresis, expiry и rig-capability fallback.
 8. Разделить cognitive goal proposals и presentation state: Thinker может сохранять желания/цели независимо от эмоций и не выдаёт world actions напрямую.
 9. Ввести durable **Goal Proposal Inbox/Outbox**: Thinker сохраняет proposals с ID, scope, evidence, priority hint, expiry и status=PENDING. В Phase 7 они валидируются по schema и сохраняются; активировать игровые действия до Goal Scheduler Phase 8 запрещено.
@@ -256,7 +257,7 @@
 **Обязательная совместная вертикальная реализация:**
 1. Расширить Phase 7 Event Feed до полного World Observer event catalogue: typed actors/targets/outcomes/location/time/visibility, event importance, durability, dedupe/coalesce и server observation policy.
 2. Реализовать Goal Scheduler и подключить его к durable Goal Proposal Inbox из Phase 7: проверить expiry/evidence/preconditions/priority, выбрать активную цель, управлять dependencies, preemption, retries и anti-loop.
-3. Реализовать **Bot как пятого гномика**: преобразовать выбранную Goal в typed action plan; это runtime реализация schema, подготовленной в Phase 7.
+3. Реализовать **Bot как пятого гномика**: преобразовать выбранную Goal в typed action plan; это runtime реализация schema, подготовленной в Phase 7. Подключить отдельный Bot provider preset и capability validation, если планирование использует LLM; deterministic plan executor не должен вызывать модель на каждый tick.
 4. Совместно реализовать Action Registry, Action Validator и Action Executor: whitelist schemas, permission/range/cooldown/world preconditions, idempotency, cancellation, uncertain outcome reconciliation и audit.
 5. Совместно реализовать Navigation/Follow: path, repath, stuck detection, obstacles, unloaded chunks, moving targets, stop/cancel, arrival predicate и фактический movement result.
 6. Соединить Navigation velocity/root movement с Motion Engine gait Phase 3; подключить gesture/reach/look-at и multi-task arbitration к реальным action targets, а не synthetic inputs.
@@ -844,7 +845,7 @@ Face Controller принимает viseme weights/time intervals от TTS provid
 
 Importer: проверить format/size/archive/path limits → import mesh/materials/skeleton/clips/extensions → normalize axes/units/scale/origin → semantic rig mapping и weights → обнаружить morphs/visemes/springs/collision proxies/sockets → проверить textures/shaders → сформировать capability report PASS/WARN/UNSUPPORTED → reference pose/deformation checks → export runtime asset + rig descriptor + provenance/license → validate Content Pack.
 
-Manifest: pack ID/version, supported API version, dependencies, asset IDs, hashes, formats, capability metadata, provenance/license и paths. Validator проверяет path traversal, absolute paths, zip bombs, size/file count, file signatures, checksums, duplicate IDs, dependency cycles, unsupported schema, malformed metadata и conflicts. Activation атомарная: validate → stage → resolve → activate; при ошибке предыдущая valid version остаётся.
+Manifest: pack ID/version, Content Pack schema/API compatibility version, dependencies, asset IDs, hashes, formats, capability metadata, provenance/license и paths. Эта версия относится к декларативному формату Content Packs и не является публичной executable Addon API version, которая стабилизируется только после Phase 8/10. Validator проверяет path traversal, absolute paths, zip bombs, size/file count, file signatures, checksums, duplicate IDs, dependency cycles, unsupported schema, malformed metadata и conflicts. Activation атомарная: validate → stage → resolve → activate; при ошибке предыдущая valid version остаётся.
 
 Server синхронизирует только ассеты с разрешённым redistribution и явным admin opt-in. Unknown/restricted assets не передаются клиентам; клиент использует local copy или placeholder. Отсутствие модели не ломает NPC.
 
