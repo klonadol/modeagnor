@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "agnor",
+  "version": "${version}",
+  "name": "AGNOR",
+  "description": "Host-authoritative AI companions — Phase 0 technical prototype",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["dev.agnor.Agnor"],
+    "client": ["dev.agnor.client.AgnorClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.10",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}

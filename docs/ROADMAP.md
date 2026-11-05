@@ -1,257 +1,196 @@
-# План разработки AGNOR
+# План разработки ModeAgnor
 
-**Текущий статус:** проектирование. Этапы ниже — план, а не заявление о готовой реализации.
+Редакция 2026-11-05. Идентификаторы **P0–P10** отличают этот план от исторических фаз 0–11. Только этот документ задаёт порядок и критерии готовности; Blueprint задаёт устройство. Фактический прогресс — в [журнале](DEVELOPMENT_LOG.md), исходники — в [карте проекта](PROJECT_MAP.md). Основания изменений: [аудит](reports/2026-11-05-001-architecture-replan.md), [матрица переноса](PLAN_MIGRATION.md), [ADR-0009](decisions/ADR-0009-dependency-driven-plan.md).
 
-## Принципы планирования
+Конечная цель неизменна: полноценные высококачественные 3D-аниме-NPC с процедурным телом/лицом/глазами, физическим взаимодействием, самостоятельными LLM-решениями, пятью специализированными агентами, шестью видами памяти, голосом, сохранением и мультиплеером. Placeholder и scripted driver — промежуточные средства проверки, не релизная замена этих функций.
 
-1. Сначала рабочая вертикальная функция, затем расширение количества подсистем.
-2. Мультиплеер, изоляция данных и серверная авторитетность проверяются с первого прототипа.
-3. Не добавлять фоновые LLM-задачи, пока не доказано, что базовый диалог и runtime не блокируют игровой поток.
-4. Каждая фаза имеет проверяемый выходной результат и отчёт в `docs/reports/`.
-5. Успешная компиляция не равна готовности функции: проверяется пользовательский путь от действия игрока до отображаемого результата и сохранения.
-6. Не менять тесты только ради зелёного CI. Ошибочный тест диагностируется и документируется.
+## Правила выполнения и проверок
 
+- **А — текущая реализация:** после изменения проверять затронутый контракт и пользовательский путь. Проверки уже подтверждённого неизменённого bootstrap не повторять без причины.
+- **Б — архитектурный риск:** один вопрос, заранее заданные критерии выбора и остановки, минимальный fixture. Если evidence достаточно, прототип не нужен. Не реализовывать будущую подсистему под названием spike.
+- **В — будущая интеграция:** выполняется только после появления всех участников. В критерии текущей фазы входят лишь перечисленные ниже интеграции; ещё не созданные функции их не блокируют.
+- Задачи внутри фазы принимаются отдельно по своему результату. Полная фаза закрывается после её интеграционного сценария. Runtime feedback cycle не обязывает писать всех участников одновременно.
+- Перед задачей уточнять только её данные, lifecycle, thread ownership, ошибки и проверки. Не закрывать все Open-вопросы Blueprint заранее. Не создавать таблицы, workers, очереди или публичные API без текущего потребителя.
+- Сеть проверяется двумя игроками при изменении адресности/общего состояния/прав; restart — при изменении persistence; HTTP failures — при изменении provider. Они не являются обязательным набором для любого изменения текста, UI или чистой математики.
+- Значения CPU/GPU/network/LLM budgets фиксируются в отчёте до приёмочного замера на указанном железе и сцене. Нельзя объявлять performance PASS без чисел; измерение не должно снижать целевое качество до vanilla NPC.
 
-## Связь с Implementation Blueprint
+## Зависимости и рекомендуемый порядок
 
-Перед началом проектирования и реализации каждой фазы используйте [IMPLEMENTATION_BLUEPRINT.md](IMPLEMENTATION_BLUEPRINT.md), раздел **0.6 «Порядок проектирования по фазам 0–11»**. Сверка исходных требований и выявленные пробелы находятся в разделах 0.5 и 0.8 Blueprint; подробные контракты компонентов — в последующих разделах. Критерии выхода этой дорожной карты остаются обязательными: Blueprint уточняет устройство и порядок проектирования, но не снижает и не заменяет критерии готовности фаз.
+```mermaid
+graph TD
+ P0[Bootstrap] --> P1[Сохраняемая NPC]
+ P1 --> P2[LLM диалог и History]
+ P1 --> P3[3D и Motion]
+ P2 --> P3
+ P3 --> P4[Внешние Content Packs]
+ P2 --> P5[Лорбук и контекст памяти]
+ P4 --> P5
+ P5 --> P6[Когнитивные агенты и память]
+ P3 --> P6
+ P6 --> P7[Действия и автономность]
+ P3 --> P7
+ P2 --> P8[Голос и lip-sync]
+ P3 --> P8
+ P4 --> P8
+ P7 --> P9[Самостоятельный релиз]
+ P8 --> P9
+ P9 --> P10[Мир и addons]
+```
 
-Переход к следующей фазе требует не только выполнения текущих задач, но и наличия описанных в Blueprint design artifacts, проверок и явно закрытых/перенесённых Open-вопросов.
+Рекомендуемый последовательный маршрут: P0 → P1 → P2 → P3 → P4 → P5 → P6 → P7 → P8 → P9 → P10. Не все соседние этапы являются жёсткими зависимостями: например, голос не требует автономной навигации. Рёбра показывают входы полной приёмки, а не запрет независимого contract test. Подробный граф подсистем и минимальные совместные срезы — в разделе 0 Blueprint.
 
-## Фазы
+## P0. Достоверный bootstrap
 
-### Фаза 0. Документация и технические проверки
-**Статус:** документация создана; технические spikes не выполнены.
+**Цель:** доказать, что на выбранной платформе можно продолжать функциональную разработку. **Предусловия:** локальный репозиторий, JDK 21 и разрешённые локальные игровые запуски. **Подсистемы:** lifecycle, source sets, общий каталог, диагностический probe.
 
-Задачи:
-- Зафиксировать архитектурные решения.
-- Создать минимальный Fabric 1.21.1 / Java 21 проект.
-- Проверить запуск интегрированного и выделенного сервера.
-- Проверить доступ к предполагаемому каталогу `mods/agnor/` на клиенте и сервере.
-- Проверить базовый сетевой пакет и синхронизацию простого состояния.
-- Сравнить GemRender, BlendLib и вариант собственного GLB renderer на минимальной rigged-модели.
-- Проверить базовый semantic motion-task API: look-at, reach и turn-towards без отдельных готовых клипов на каждый случай. На Фазе 0 задачи подаются только тестовым scripted/synthetic driver: проверяется исполнитель движения, а не поведение ИИ-персонажа.
-- Сравнить Two-Bone IK / FABRIK или CCD для конечностей и базовый whole-body priority solver.
-- Проверить процедурную походку и серверное вычисление pose state на тестовом управлении без зависимости от диалога/гномиков.
-- Проверить техническую поддержку skinning, runtime morph-weight control, animation blending, procedural bone overrides и secondary physics. Наличие morph API подтверждает возможность рендеринга лица, но не означает, что эмоции уже подключены к мозгу персонажа.
-- Проверить, что host выполняет IK/pose/physics calculations, а клиенты только интерполируют серверные pose snapshots.
-- Проверить лицензию, зависимости, Fabric 1.21.1 runtime и совместимость с Sodium/Iris на целевой сборке.
-- Найти и проверить готовую тестовую rigged anime-модель с разрешённым использованием; если подходящей нет, использовать локальную временную модель по ADR-0008 и записать её в Asset Replacement Register. Не моделировать с нуля без необходимости.
-- Дополнительно проверить один static mesh/GLB без подтверждённого рига и описать минимальную адаптацию.
-- Использовать Blender для проверки и минимального ремонта/retargeting тестовых моделей, а не как обязательный этап создания геометрии.
-- Зафиксировать зависимости и версии в отдельном отчёте.
+| Задача | Зависит от | Результат и проверка |
+|---|---|---|
+| P0.1 Зафиксировать платформу и split main/client, Wrapper | — | А: сборка JAR; client classes не загружаются dedicated server |
+| P0.2 Проверить lifecycle и каталог ресурсов | P0.1 | А: integrated/dedicated startup, нестандартный gameDir, повторное создание, конфликт с файлом |
+| P0.3 Проверить адресный probe и повторный запуск | P0.2 | А: два dev UUID, ошибки version/sequence, burst и replay, marker после restart |
 
-Критерий выхода: воспроизводимая сборка, запуск на обеих серверных конфигурациях и подтверждённые технические ограничения.
+**Контракт:** Probe v1 — read-only диагностика, не протокол NPC или permissions. Каталог ресурсов не является world storage.
+**Минимальный результат и выход:** воспроизводимая сборка и существующие проверки P0.1–P0.3 подтверждены отчётом 2026-11-04-004 и сохранёнными логами; три unit-теста проходят. По новой границе P0 выполнена. Это переоценка объёма по запросу пользователя, а не утверждение о выполнении прежнего широкого gate.
+**Отложено:** storage — P1.1; renderer/morph/headless pose — P3.1; IK/gait/physics/pose sync — P3; provider — P2; полная матрица модов — P9. Готовые модели и Blender для P0 не нужны.
+**Риски:** единичный native GLFW crash не объяснён; ACL denial, raw malformed packets и точная граница rate limit не подтверждены. Это не доказанная поломка bootstrap: проверять по триггеру изменения соответствующего кода, до релиза — P9.1. [Протокол и ограничения evidence](PHASE_0_SPIKES.md).
 
-**Цель короткого прототипного спринта — около одной недели**, при условии готовой тестовой модели/рига и доступного окружения. Это цель демонстратора, а не срок реализации полноценного качества ZZZ:
-- День 1: Fabric client/server skeleton, GLB renderer spike и загрузка тестовой модели.
-- День 2: чтение/изменение skeleton pose и минимальный Pose Controller.
-- День 3: look-at, reach и IK.
-- День 4: Whole Body coordination и базовая процедурная походка.
-- День 5: простая spring-chain физика волос.
-- День 6: host-authoritative pose calculation и отображение на двух клиентах.
-- День 7: интеграция, измерения CPU/GPU/network, диагностика и отчёт.
+## P1. Первая сохраняемая NPC и безопасное управление
 
-Если библиотека не проходит обязательный тест, renderer не утверждается ради соблюдения срока: фиксируется фактический результат и следующий шаг.
+**Цель:** игрок создаёт NPC, взаимодействует с её базовым состоянием и находит её после перезапуска. **Предусловия:** P0. **Подсистемы:** Character Runtime/Definition Registry, Storage Facade, permissions, config, UI, network.
 
-### Фаза 1. Каркас мода и серверно-клиентская граница
-Задачи:
-- Fabric lifecycle и регистрация мода.
-- Разделение common/server/client кода.
-- Система конфигураций и каталогов.
-- Network protocol с проверкой версий.
-- Permissions и проверка отправителя.
-- Минимальный экран настроек.
-- Базовое логирование без секретов.
-- Единый Storage Facade foundation: schema versioning, scope enforcement, transactions и migrations; все игровые и AI-хранилища следующих фаз используют этот интерфейс и выбранный в Фазе 0 backend.
+| Задача | Зависит от | Результат и проверка |
+|---|---|---|
+| P1.1 Выбрать backend и world-scoped storage contract | P0 | Б: сравнить SQLite/JSON на одном NPC + двух relationship records; atomic update/rollback, restart, migration и два мира; зафиксировать выбор ADR |
+| P1.2 Реализовать минимальный Storage Facade и настройки | P1.1 | А: schema version, scoped transaction, backup/restore одной версии, ошибка записи без потери предыдущего состояния; save/reload config |
+| P1.3 Создать Definition Registry, entity UUID и lifecycle | P1.2 | А: встроенное dev definition; create/load/unload/delete с tombstone/idempotency; сохранение позиции/runtime и отдельных отношений |
+| P1.4 Подключить управление, права и snapshots | P1.3 | А: spawn/select/delete через минимальный UI/команду, owner/admin checks, protocol version/size limits, безопасные логи без секретов, два игрока и два мира |
 
-Критерий выхода: мод запускается в одиночной игре и на dedicated server; клиент подключается; сервер валидирует запросы; сохранение конфигурации переживает перезапуск.
+**Контракты:** WorldId/NpcId/PlayerUUID, versioned CharacterDefinition/RuntimeSnapshot, operation ID, permission context, scoped transaction; память пока только ownership IDs. World storage определяется из server save, а не общего gameDir; точный layout закрепить в P1.1.
+**Результат/выход:** одна NPC с явно временным placeholder появляется, сохраняется и удаляется без дубликатов; два игрока имеют раздельные отношения, чужой мир/неавторизованный запрос не изменяет состояние. Проверить integrated и dedicated restart; отсутствие модели не блокирует server activation.
+**Статус 2026-11-05:** P1.1 завершена как ограниченное исследование: [ADR-0010](decisions/ADR-0010-world-scoped-storage.md), [сборка и SQLite/JSON fixture](reports/2026-11-05-002-storage-contract.md). Выбран SQLite на server save; production storage и Java adapter ещё отсутствуют. Первая незавершённая задача — **P1.2**, в этой работе не реализуется.
 
-### Фаза 2. Character Runtime и первая NPC
-Задачи:
-- UUID NPC и Character Definition.
-- Создание, удаление и загрузка NPC.
-- Runtime State и жизненный цикл.
-- Отдельные профили отношений по UUID игроков.
-- Сохранение мира/NPC/игрока через общий Storage Facade.
-- Базовая Character Definition schema и Registry со встроенным/dev definition source для первой NPC; внешний Content Pack Loader в Фазе 4 подключается к тому же Registry, без второй схемы персонажей.
-- Memory/task scope на этой фазе — только стабильные ownership IDs; не создавать заранее memory repositories, Gnome Task Scheduler queues или AI workers, которые появятся в Фазах 6–8.
-- Memory/task scope на этой фазе — только стабильные ownership IDs; не создавать заранее memory repositories, Gnome Task Scheduler queues или AI workers, которые появятся в Фазах 6–8.
-- Создание/активация NPC на сервере не зависит от renderer или готовности клиентской модели: в Phase 2 сохраняются model/asset references, а клиенты показывают временный placeholder `PRESENTATION_NOT_READY` до подключения renderer в Phase 3.
-- Минимальный тест двух игроков и одной NPC.
+**Отложено:** шесть memory stores, AI queues/outbox, полноценный редактор, renderer. **Риски:** unload vs delete, двойная запись entity и storage, исключение client classes. `DataRoots.serverData` исключён из приватного storage контрактом ADR-0010; применение server-save пути обязательно до первой приватной записи.
 
-Критерий выхода: NPC и её server state создаются/сохраняются независимо от renderer и восстанавливаются после перезапуска; до Phase 3 два клиента видят одинаковый placeholder; два игрока имеют раздельные профили отношений; один мир не читает данные другого. Полноценное отображение модели не входит в критерий Phase 2.
+## P2. Реальный LLM-диалог с сохраняемой историей
 
-### Правило временных моделей для фаз 0–4
+**Цель:** NPC отвечает игроку через локальный или облачный LLM без блокировки мира. **Предусловия:** P1. **Подсистемы:** Provider Gateway, presets, Conversation History, Context Builder, диалоговый UI, durable event log.
 
-Если подходящей модели с ясными правами нет, технические прототипы рендера/рига/анимации могут временно использовать локальный dev-only ассет со статусом `TEMPORARY_RESTRICTED`. Его можно включать в собственные локальные dev-сборки и локальные JAR/Content Packs, но нельзя коммитить в публичный Git, включать в публичные релизы или передавать другим игрокам. Источник, прямая ссылка на скачивание (если доступна), checksum и план замены фиксируются в Asset Replacement Register. Перед финальным релизом полной версии после переноса авторского мира в Minecraft (Фаза 11) все временные модели заменяются разрешёнными аналогами или удаляются. Первый самостоятельный релиз companion-мода (Фаза 10) из-за временных локальных моделей не блокируется.
+| Задача | Зависит от | Результат и проверка |
+|---|---|---|
+| P2.1 Gateway и Main Dialogue preset | P1.4 | А: endpoint/host secrets, capabilities, bounded async IO, timeout/cancel, ограниченный retry; один реальный endpoint сначала |
+| P2.2 History + единый Context Builder | P1.2 | А: accepted inbound и final reply, sequence/scope, recent N default 10, roles/system policy, runtime/relationship snapshot, бюджет контекста |
+| P2.3 Диалоговый вертикальный путь и event log | P2.1, P2.2 | А: UI → validated request → context → provider → committed reply → private UI; History+event atomic, restart и request dedupe |
+| P2.4 Локальный/облачный режим и отказы | P2.3 | А: проверить оба режима конфигурации, streaming если заявлен capability, disconnect/cancel/stale reply, secret redaction; mock для отказов и реальный happy path |
 
-### Фаза 3. Высококачественный 3D-персонаж и исполнительный слой движения
-Задачи:
-- Подобрать готовую внешнюю polygon-mesh модель с подходящим ригом и проверенными условиями использования.
-- Сначала подключить модель напрямую, если её формат и возможности совместимы.
-- Через Blender выполнить только необходимые repair/adaptation операции: scale, orientation, materials, rig mapping, skin weights, retargeting и facial mapping.
-- Подготавливать собственную модель или недостающие части только если подходящего готового ассета нет.
-- Реализовать импорт/загрузку выбранного runtime-формата.
-- Реализовать animation state machine, crossfade, body-part masks и additive layers.
-- Создать Agnor Motion Engine с semantic motion tasks, Task Planner и приоритетами/прерываниями.
-- Реализовать Whole Body Coordinator и интерфейсы solver-ов.
-- Реализовать Two-Bone IK, foot IK, look-at и joint limits.
-- Реализовать процедурную походку: фаза шага, скорость, перенос веса, таз и движение рук.
-- Поддержать сочетание процедурного движения с короткими авторскими клипами, а не клип на каждую комбинацию.
-- Подключить технические контроллеры look-at, IK рук/ног, микродвижения и Face Controller. До появления диалога и гномиков управление ими выполняется только тестовым драйвером; это не поведенческая интеграция.
-- Подготовить expression channels и test expressions, но не подключать осмысленные эмоции к персонажу: dialogue-driven reactions относятся к Фазе 5, внутренние эмоции Thinker — к Фазе 7.
-- Не реализовывать полноценный lip-sync на этой фазе: для него необходим источник audio/viseme timing из Фазы 9.
-- Реализовать host-side secondary motion для волос, подвесок и выбранных элементов одежды.
-- Подготовить Motion Task API и тестовый harness так, чтобы позже к ним подключились Dialogue Presentation Adapter, Thinker/Affective Mapper и Bot/Navigation без переписывания renderer/solver.
-- Реализовать Character Presentation Adapter, который подключает renderer/rig/pose controller к уже существующим NPC UUID и server snapshots из Фазы 2; не создавать вторую NPC identity/lifecycle и не делать renderer prerequisite для server runtime.
-- Реализовать Pose Publisher и ограниченную по частоте/размеру синхронизацию pose snapshots.
-- Проверить cloth/body clipping и столкновения с упрощёнными collision proxies.
-- Синхронизировать authoritative gameplay state и визуальное состояние между клиентами.
-- Профилировать GPU/CPU на одной и нескольких NPC.
+**Контракты:** ProviderRequest/Result, ConversationId/MessageId/sequence, ContextSource status, DialoguePresentationIntent. Только Main Dialogue destination активен. Outbox хранит события и ссылки на защищённые сообщения; per-consumer cursors/leases создаются при включении consumer в P6. Pending источники нельзя обрезать обычным recent-N лимитом.
+**Результат/выход:** два игрока независимо говорят с NPC, история восстанавливается; запрос/ответ не дублируется при retry; отказ API не стопорит tick и не раскрывает чужой диалог. Для каждого режима нужен реальный проверенный endpoint; отсутствие credentials отмечается как конкретная незавершённая P2.4, а не имитация PASS.
+**Отложено:** gaze/жесты до P3, gnome presets до P6, Bot до P7, TTS до P8. Семантический speaking state можно показать текстом. **Риски:** неполный streaming, цена/контекст, crash между commit и отправкой UI, retention до активации consumers. Единица счёта: accepted inbound = 1, final assistant = 1; partial/system/retry = 0.
 
-Критерий выхода: тестовая модель через scripted test harness проходит idle, walk/run, start/stop, повороты, look-at, reach, жесты и тестовые facial expressions; анимационные слои смешиваются без заметных скачков; secondary motion реагирует на тестовое движение и не создаёт критичных пересечений; два клиента видят согласованное положение/состояние; производительность замерена и имеет определённые бюджеты. Этот выход подтверждает технический исполнительный слой, но НЕ означает, что персонаж уже живо реагирует на игрока, имеет осмысленную эмоциональную мимику или умеет говорить. Эти пользовательские функции подключаются после появления соответствующих источников поведения в фазах 5, 7, 8 и 9.
+## P3. Выразительная 3D-NPC и управляемое тело
 
-### Фаза 4. Content Packs
-Задачи:
-- Манифест и schema/compatibility version для декларативных Content Packs; эта версия не является executable Addon API version, которая стабилизируется после Фазы 8 и замораживается в Фазе 10.
-- Сканирование, проверка, включение и отключение.
-- Внешние модели, текстуры, анимации и определения персонажей.
-- Metadata происхождения, автора, лицензии и разрешений для каждого ассета.
-- Pack prompts, voice descriptors и declarative behavior settings загружаются как пассивные данные; они не исполняются при сканировании/активации пакета и становятся доступными соответствующим сервисам только при их включении в фазах 5/7/8/9.
-- Capability report импортированной модели и fallback для отсутствующих rig/face/physics channels.
-- Подключение внешних Character Definition к Registry, созданному в Фазе 2; проверка ID/version и совместимости без создания параллельного реестра персонажей.
-- Локальные пользовательские модели без обязательной раздачи другим клиентам.
-- Приоритеты и переопределения ресурсов.
-- Проверка checksum и версия пакета.
-- Безопасная политика загрузки/отказа для клиента.
+**Цель:** заменить placeholder полноценным anime mesh и связать тело/лицо с уже работающим диалогом. **Предусловия:** P1; P2 нужен для конечной диалоговой приёмки, не для P3.1. **Подсистемы:** importer/renderer adapter, rig, Motion Engine, Face Controller, host physics, Pose Publisher.
 
-Критерий выхода: добавление нового тестового персонажа через внешний пакет без изменения JAR; готовая модель подключается без ручного моделирования с нуля; пакет с неизвестной лицензией не попадает в публичную сборку и не раздаётся клиентам; все временные restricted-ассеты внесены в реестр и имеют план замены; несовместимый/повреждённый пакет даёт понятную ошибку.
+| Задача | Зависит от | Результат и проверка |
+|---|---|---|
+| P3.1 Закрыть риск renderer/формата | P1 | Б: сопоставить GemRender/BlendLib/custom по текущим исходникам и лицензиям; один малый rig+morph fixture, headless pose read/evaluate, client palette/morph override и exact Fabric matrix; остановиться после ответа по API, не писать gait/physics |
+| P3.2 Подключить готовую модель к существующей NPC | P3.1 | А: renderer adapter, import/rig mapping/materials/textures/scale; одна rigged anime-модель и static capability fallback, минимальная Blender адаптация при необходимости; повторная загрузка и отсутствие GPU dependencies на сервере |
+| P3.3 Собрать animation/pose/face pipeline | P3.2 | А: clip crossfade/masks/additive, FK/IK и joint limits, foot/look/reach/turn, глаза/мимика, whole-body arbitration; сначала простой Two-Bone, FABRIK/CCD лишь для нерешённых цепей |
+| P3.4 Процедурная локомоция и secondary physics | P3.3 | А: scripted root velocity, start/stop/turn/run, pelvis/weight/arms; host spring chains, ограниченные collision proxies и clipping scenes |
+| P3.5 Синхронизация и реальный диалоговый adapter | P3.4, P2.3 | А: pose sequence/rig hash/reconnect, два клиента; listening/thinking/speaking, взгляд на собеседника, валидированные жесты/expressions, neutral fallback; замеры CPU/GPU/bytes на одной и нескольких NPC |
 
-### Фаза 5. Provider Gateway и живой диалог
-Задачи:
-- Общий интерфейс LLM-провайдера.
-- Preset Registry и назначения по компонентам/NPC; в Phase 5 активируется только Main Dialogue preset. Preset slots для gnomes/embedding включаются в Phase 7, Bot — в Phase 8, TTS — в Phase 9; отсутствие будущих consumers/presets не блокирует чат.
-- Поддержка локальных endpoint и облачных API.
-- Тайм-аут, retry, streaming при наличии поддержки.
-- Диалоговый экран и контекст последних N сообщений (default 10).
-- Единственный Context Builder с начальными источниками: Character Definition/system policy, Relationship/Runtime snapshot и durable Conversation History. Lorebook/Diary/Action Memory/Thoughts/Summary пока не активированы.
-- Расширяемый Context Source Registry: Фаза 6 подключает memory stores через адаптеры к этому же сборщику контекста.
-- Контекст каждой секции отличает NOT_YET_ENABLED от доступного, но пустого источника; отсутствие будущего store не маскируется под успешный пустой retrieval.
-- Каждая durable write в Conversation History (accepted inbound message и finalized assistant response; streaming partial не включается) атомарно создаёт downstream event outbox record с message ID/range, scope, direction/status и sequence. Для каждой пары event ID + consumer ID ведётся отдельный delivery state (pending/claimed/completed, attempts/lease, idempotency key и свой watermark); обработка Memorizer не подтверждает событие за Summarizer или Thinker. Пока gnome consumers не активированы, deliveries остаются pending; Phase 7 replay-ит их независимо, без потери/повторов.
-- Context Builder поддерживает отдельные dialogue/thinker profiles с собственными allowlists, scope, freshness и token budgets; это один engine, не отдельные копии сборщика контекста.
-- Dialogue Presentation Adapter: реальные реакции на собеседника — поворот/взгляд на говорящего, listening/thinking/speaking states, ограниченные conversational expressions и простые жесты через Motion Engine.
-- Передавать в Face/Body Controller только валидированные semantic states/expressions, а не сырые LLM-команды на кости/morph weights; при отсутствии metadata использовать нейтральную реакцию.
-- Системные промты и роли сообщений.
-- Защищённое хранение ключей на хосте.
+Внутри P3.3 завершать и проверять последовательно: (а) clips/crossfade/masks/additive на фиксированном rig; (б) FK/Two-Bone IK/joint limits на одной цепи; (в) whole-body arbitration и foot/look/reach на тестовых контактах; (г) eye/face channels и независимые expressions. Каждая часть имеет отдельный управляемый сценарий и не ждёт gait/physics P3.4. P3.4 сначала проверяет походку, затем вторичную физику на той же модели. Это подзадачи одной продуктовой фазы, не ещё один общий предварительный gate.
 
-Критерий выхода: игрок открывает диалог, сервер формирует контекст, вызывает настроенный провайдер асинхронно, ответ отображается клиенту; NPC действительно ориентируется на собеседника, показывает listening/speaking state и валидированную conversational reaction; ошибка/тайм-аут API не зависает на server thread. Это первая диалоговая реактивность, но не полная автономная жизнь NPC.
+**Контракты:** renderer-independent RigDescriptor, MotionTask (priority/expiry/cancel), host PoseSnapshot (sequence/tick/rig revision), expression channels; semantic intents вместо LLM bone arrays. Сервер вычисляет pose/IK/secondary state, клиент интерполирует и выполняет skinning; render backend не владеет gameplay identity.
+**Результат/выход:** тестовая anime-NPC имеет корректные материалы, скелет, смешивание движений, управляемое лицо/глаза и вторичную физику; отвечает на реальный диалог визуально; два клиента видят согласованное состояние. Записать визуальные сцены, дефекты и измеренные бюджеты; проверить baseline и выбранные Sodium/Iris версии. Shader fallback не называть полной совместимостью.
+**Отложено:** выбор пути/реальное следование — P7; Thinker affect — P6; audio lip-sync — P8; широкая compatibility matrix — P9. **Риски:** runtime morphs и dedicated classloading библиотек, joint/morph binding стабильность, сетевой объём, прозрачность/волосы/cloth clipping. Если ни один backend не проходит P3.1, зафиксировать ограниченный план adapter/custom proof; не заменять конечную цель vanilla renderer и не объявлять собственный renderer доказанным заранее.
 
-### Фаза 6. Шесть хранилищ и persistence
-Задачи:
-- Conversation History.
-- Lorebook.
-- Diary.
-- Action Memory.
-- Thoughts.
-- Daily Summary.
-- Схема SQLite/JSON, миграции, резервные копии.
-- Изоляция world/NPC/player.
-- Индексация и правила retention.
-- Exact/keyword/Always Lorebook activation работает в этой фазе; semantic-only retrieval помечается NOT_YET_ENABLED до Embedding adapter Фазы 7, чтобы не выдавать отсутствие провайдера за пустую выдачу.
-- Все хранилища используют единый Storage Facade и backend из Фазы 0/1; Conversation History расширяется, а не переносится во вторую БД.
-- Подготовить Action Memory и Thoughts schema/API, но не считать их end-to-end функциями до подключения источников и потребителей в Фазе 7.
-- Зафиксировать единицу message count для History и Summarizer: одна durable History record — одно сообщение; accepted inbound player message и finalized assistant reply считаются отдельно. Streaming partial, system prompt, retries и uncommitted interrupted partial не считаются. Default summary threshold — 10 committed records; точный диапазон определяется sequence/watermark.
-- Точное определение периода Daily Summary (Minecraft day или calendar/server-local day) закрыть до реализации Summarizer в Фазе 7.
+## P4. Внешние персонажи и Content Packs
 
-Критерий выхода: записи не смешиваются между NPC, игроками и мирами; все хранилища восстанавливаются после перезапуска; история соблюдает настраиваемый лимит.
+**Цель:** сменить/добавить персонажа без пересборки мода. **Предусловия:** P3, P2 для действующих prompts. **Подсистемы:** pack loader, Registry, model resources, настройки и sync.
 
-### Фаза 7. Когнитивные гномики и планировщик
+| Задача | Зависит от | Результат и проверка |
+|---|---|---|
+| P4.1 Manifest и безопасный loader | P3.2 | А: schema/version/hash, path traversal/limits/signatures, provenance/rights, dependencies/cycles/override priority |
+| P4.2 Активация через существующий Registry | P4.1 | А: stage/enable/disable/reload/rollback, capability report, внешний definition с тем же NPC identity; fallback недостающих channels |
+| P4.3 UI и разрешённая синхронизация | P4.2 | А: local user dirs, выбор/настройки, version mismatch/reconnect; policy отказа/получения разрешённых ассетов с лимитами; запрещённые ассеты не передаются |
 
-Задачи:
-- Реализовать ограниченный World Event Feed Foundation, который собирает server-side world/NPC события для Thinker и Action Memory: NPC lifecycle hooks, вход/выход/приближение игрока, существенные наблюдаемые взаимодействия и важные изменения NPC. При включении feed строит baseline snapshot текущего состояния; события до его активации не реконструируются задним числом. После активации он пишет typed world/action events; содержимое диалоговых сообщений остаётся в Conversation History и не копируется в Action Memory. Это не полный автономный Observer и не action executor.
-- Подключить и replay накопившиеся Phase 5 dialogue outbox records: каждая delivery обрабатывается отдельно по event ID + consumer ID, с собственным claim/lease, idempotency и watermark commit. Завершение одного consumer не закрывает delivery остальных; restart не теряет и не дублирует обработку.
-- Применять consumer-specific trigger policy: Memorizer batch-ит новые finalized History ranges; Summarizer учитывает каждый committed message record и создаёт задачу только при переходе watermark через threshold 10; Thinker запускается по ConversationTurnFinalized, значимым world/NPC events и периодическому интервалу около 30 секунд, объединяя частые triggers в одну pending task. Consumer delivery ack допускается только вместе с durable task/aggregation update.
-- Реализовать Gnome Task Scheduler: bounded queues, приоритеты, per-gnome/per-provider limits, deduplication, cancellation, retry/backoff, checkpoint и metrics. Это очередь фоновых AI jobs; Goal Scheduler игровых целей появляется в Фазе 8 и является отдельной системой.
-- Совместно подключить Memorizer (History + Thoughts) и Thinker (создаёт/обновляет Thoughts); ThoughtChanged, watermark и защита от stale results проверяются как одна связка.
-- Подключить Judge к candidate pipeline и Diary; Thinker использует Diary только после того, как candidate → Judge → transactional Diary write реально подключены.
-- Подключить Summarizer к finalized Conversation History и доступным Event Feed/Action Memory событиям; Thinker получает Summary через тот же Context Builder.
-- Embedding adapter/profile и независимые provider presets активируемых когнитивных гномиков: Memorizer, Judge, Thinker, Summarizer. Bot-specific provider preset подключается вместе с самим Bot в Фазе 8. В этой фазе становятся активными соответствующие gnome destinations Provider Gateway; Main Dialogue preset сохраняет независимость.
-- Affective Presentation Mapper: валидированные emotion/intensity/attention/desire состояния Thinker передаются в Face/Body Controller с smoothing, expiry и fallback; не давать LLM управление костями.
-- Goal proposals Thinker сохраняются в durable Goal Proposal Inbox/Outbox через Storage Facade с ID/scope/evidence/expiry/status=PENDING; запись связана с Thought, это не седьмое хранилище памяти. В этой фазе они не исполняются и не меняют игровой мир; Phase 8 claims/validates их атомарно и не исполняет повторно.
-- Ручной запуск/отладка из меню: permission check, preview/dry-run, status, cancel/retry и безопасная диагностика.
-- Определить Bot typed plan/action-intent contract. Сам Bot как пятый работающий гномик переносится в совместную реализацию Фазы 8, когда готовы Goal Scheduler и Action Executor.
+**Контракты:** ContentPackSchema отдельно от executable Addon API; DefinitionSource, asset hash/rig revision, capability states. Prompt/voice/behavior данные пассивны до consumer; уже готовый Dialogue может использовать prompt сразу.
+**Результат/выход:** внешний пакет меняет отображение и настройки персонажа без JAR rebuild; повреждённый пакет не уничтожает прошлую версию; multiplayer policy воспроизводима. **Отложено:** executable addons P10, voice consumer P8. **Риски:** unsafe files, ресурсные утечки reload, несовместимый rig, права на передачу. Временные restricted ассеты только локально и в реестре; никогда в публичных артефактах.
 
-**Критерий выхода:** единый end-to-end цикл Event Feed → Action Memory → Thinker → Thoughts → Memorizer → Judge → Diary → Thinker, плюс Summarizer и Context Builder. Гномики не принимаются как набор отдельных изолированных сервисов: проверяются циклические связи, retry/restart, watermark, scope isolation и деградация. Goal proposals сохраняются, но не исполняются до Фазы 8. Ошибка одного provider не ломает основной диалог.
+## P5. Управляемый контекст памяти
 
-### Фаза 8. Автономность: Bot, Goal Scheduler, World Observer и действия
+**Цель:** пользовательские знания реально влияют на диалог без полного когнитивного комплекса. **Предусловия:** P2, P4 для пользовательских pack-источников. **Подсистемы:** Lorebook, History UI, Context Source Registry, persistence.
 
-Задачи:
-- Расширить Event Feed Фазы 7 до полного World Observer: event catalogue, actor/target/outcome/location/time/visibility, relevance, durability, deduplication и coalescing.
-- Реализовать Goal Scheduler, который забирает pending proposals из Goal Proposal Inbox, проверяет expiry, evidence, preconditions, priority, dependencies и правила прерывания.
-- Реализовать Bot как пятого гномика: преобразование выбранной цели в typed action plan; его асинхронный inference dispatch использует Gnome Task Scheduler, а игровые цели и actions — отдельный Goal Scheduler/Action Runtime. Здесь активируется Bot-specific provider preset, если LLM используется для planning.
-- Подключить отдельный Bot provider preset/capability validation, если Bot использует LLM для планирования; исполнение validated plan не вызывает модель на каждом игровом тике.
-- Одновременно реализовать Action Registry, Action Validator и Action Executor: whitelist, schema, permissions, distance/range, cooldown, world preconditions, idempotency, cancellation и uncertain-result reconciliation.
-- Реализовать Navigation/Follow: pathfinding, moving target, repath, stuck detection, obstacles, unloaded chunks, stop/cancel и arrival predicate.
-- Подключить Navigation root movement/velocity к Motion Engine; заменить synthetic inputs Фазы 3 на реальные path/target/action inputs.
-- Подключить фактические action outcomes и World Observer к Action Memory и Thinker; обновлять цели после успехов, ошибок и внешних событий.
-- Обеспечить event/action deduplication и anti-loop: собственные действия NPC не должны бесконечно запускать сами себя.
-- Multiplayer visibility, permissions и server authority для всех автономных действий.
+| Задача | Зависит от | Результат и проверка |
+|---|---|---|
+| P5.1 Lorebook и интерфейс записей | P2.2, P4.2 | А: CRUD, Always/exact/keyword, роли, scope, priorities и pack/local overrides |
+| P5.2 Включение в общий Context Builder | P5.1 | А: реальные диалоги с/без matching knowledge, source IDs, budget/truncation, NOT_YET_ENABLED для semantic search |
+| P5.3 Управление и защита данных | P5.2 | А: History просмотра/настройки N, backup/restore/migration/retention текущих stores, два игрока; не стирать необработанный outbox source |
 
-**Важно:** Bot, Goal Scheduler, полный World Observer, Action Validator/Executor, Navigation и Motion bridge реализуются и принимаются как единая вертикальная функция. Их нельзя объявлять готовыми по отдельности, потому что они образуют цикл: цель → план → проверка → действие → движение → наблюдаемый результат → память/Thinker → следующая цель.
+**Контракты:** ContextSourceRegistry с NOT_YET_ENABLED/AVAILABLE_EMPTY/AVAILABLE_WITH_DATA/TEMPORARILY_UNAVAILABLE/FORBIDDEN, profile allowlist/scope/freshness/budget; один engine. **Результат/выход:** подходящая запись лорбука попадает в контекст и влияет на ответ с трассируемым source ID; чужая/неподходящая не попадает. Сохраняемая история и знания восстанавливаются.
+**Отложено:** Diary/Thoughts/ActionMemory/Summary создаются с реальными writers в P6; semantic embeddings P6.5. **Риски:** prompt injection не должен менять server permissions, смешение scope, конфликт лимита истории и replay. Шесть финальных видов памяти сохранены, но пустые API без writer не создаются ради номера фазы.
 
-**Критерий выхода:** NPC самостоятельно выполняет разрешённые цели; Thinker/Bot proposals доходят до реальных проверенных действий и движений; препятствия, moving targets, отмена, смена цели, повтор доставки, side-effect retry и мультиплеерная авторитетность обработаны. Gaze, gesture, locomotion и emotion корректно смешиваются и прерываются. Это первая фаза полноценного автономного поведения.
+## P6. Динамическая память, мысли и эмоции
 
-### Фаза 9. Голос
-Задачи:
-- TTS adapters и голосовые пресеты; здесь активируется TTS destination/preset Provider Gateway, ранее существовавший только как конфигурационный slot.
-- Назначение голоса каждому NPC.
-- Очередь аудио, прерывание и кэш.
-- Воспроизведение на клиентах.
-- Подключить TTS/audio viseme timeline к Face Controller и смешивать lip-sync с эмоциональной мимикой по независимым каналам.
-- Реализовать синхронизацию рта с реальным playback timing, а не случайным mouth animation.
-- Безопасная деградация при недоступности TTS.
+**Цель:** NPC осмысливает наблюдения, запоминает опыт и выражает состояние. **Предусловия:** P5, P3 для affect presentation. **Подсистемы:** четыре cognitive gnomes, scheduler, Event Feed, все шесть memory stores, embedding, context, affect.
 
-Критерий выхода: текстовый диалог остаётся работоспособным без TTS; голос воспроизводится согласованно у подключённых игроков в рамках выбранной сетевой политики; движение губ синхронизировано с audio/viseme timing, а lip-sync не перетирает эмоциональные expression channels.
+| Задача | Зависит от | Результат и проверка |
+|---|---|---|
+| P6.1 Event Feed и Action Memory | P1.3, P5.3 | А: baseline при включении, типизированные события мира, dedupe/coalesce; сообщения не копируются в Action Memory |
+| P6.2 Scheduler + Thinker → Thoughts | P6.1, P2.1 | А: bounded jobs и per-consumer replay/cursor с atomic enqueue ack, независимый preset, context profile, periodic/turn/event triggers, stale/expiry/cancel; Thoughts и pending proposal атомарны; подключить affect mapper к P3 |
+| P6.3 Memorizer → Judge → Diary | P6.2 | А: History+Thoughts only → candidate → Judge → provenance/versioned Diary; Thinker читает реально созданную запись; per-consumer replay/lease и atomic enqueue ack |
+| P6.4 Summarizer → Summary → Context | P6.3 | Б: выбрать day boundary/timezone до writer; А: каждые 10 committed records, input range/watermark, предыдущая Summary + events, restart без повторного count |
+| P6.5 Embedding и эксплуатация полного цикла | P6.4 | А: semantic retrieval/duplicate candidates, versioned index/rebuild, keyword fallback, ручной dry-run/status/cancel/retry с правами; отказ одного provider и restart полного цикла |
 
-### Фаза 10. Полировка и первый самостоятельный релиз
-Задачи:
-- Полный мультиплеерный smoke/regression suite.
-- Нагрузочные тесты нескольких NPC и игроков.
-- Проверка долгих сессий и перезапуска.
-- Обработка ошибок и миграций.
-- Настройки производительности и расходов API.
-- Инструкции установки и создания пакетов.
-- Проверка совместимости с распространёнными модами по матрице тестов.
+**Контракты:** TaskId + consumer cursor/lease; Memorizer allowlist History/Thoughts; Judge sole automatic Diary writer; Thinker structured state (не скрытая chain-of-thought); GoalProposalInbox ID/scope/evidence/expiry/PENDING, пока без исполнения. Embedding — ускоритель retrieval, не судья истинности. Контекст источника до включения явно неполный, после включения может быть пустым.
+**Результат/выход:** событие мира → Action Memory → Thinker/Thoughts → Memorizer/Judge → Diary → следующий Thinker; Summary меняет контекст, emotion меняет лицо/позу. Проверить scope, replay, stale result, bounded queues, privacy и failure isolation. P6.1–P6.4 принимаются как законченные ограниченные срезы; финальная приёмка P6 требует весь цикл.
+**Отложено:** предложения не двигают NPC до P7; Bot inference отсутствует. **Риски:** feedback storms, конфликт убеждения и факта, цена inference, backlog до активации, TTL целей. Изменение Thought само по себе не вызывает бесконечную цепь пересчётов: version/no-op/coalescing и budget обязательны.
 
-Критерий выхода: законченный AI companion mod без зависимости от мира Агнор или Create; пройдены документированные пользовательские сценарии; известные ограничения опубликованы.
+## P7. Самостоятельные действия в мире
 
-### Фаза 11. Перенос авторского мира и финальный релиз полной версии
-Задачи:
-- Перенос мира Агнор в Minecraft.
-- Дополнительные пакеты персонажей.
-- Addon-интеграции с другими модами.
-- После завершения Action/Goal/Event API в Фазе 8 и compatibility hardening в Фазе 10 заморозить стабильный versioned Optional Addon API.
-- Отдельный Create adapter после проверки доступной версии и loader compatibility.
-- Расширенная голосовая коммуникация и дополнительные виды интеракций.
-- Перед финальным релизом полной версии заменить временные модели из Asset Replacement Register на собственные или разрешённые аналоги либо удалить их.
+**Цель:** мысли NPC приводят к безопасным реальным действиям и новым наблюдениям. **Предусловия:** P6, P3. **Подсистемы:** Goal Scheduler, Bot, Action Runtime, Navigation, Observer, Motion bridge.
 
-Критерий выхода: авторский мир перенесён в Minecraft, временные модели заменены или удалены, а публичный дистрибутив содержит только материалы, которые разрешено распространять.
+| Задача | Зависит от | Результат и проверка |
+|---|---|---|
+| P7.1 Минимальное действие от запроса до результата | P1.4, P6.1 | А: typed plan/action registry, whitelist/schema/rights/range/cooldown, server-thread executor, idempotency, cancellation; ручная цель служит настоящим входом, deterministic plan — тестом validator |
+| P7.2 Navigation и Motion bridge | P7.1, P3.5 | А: walk_to/follow, moving target, repath/stuck/unloaded chunks, stop/arrival, реальная velocity→gait; observable outcomes |
+| P7.3 Goal Inbox → Scheduler → Bot | P7.2, P6.2 | А: atomic claim, expired/rejected goal, priority/preemption/dependencies, Bot preset и async typed planning; цель Thinker реально исполняется |
+| P7.4 Замкнуть автономный цикл | P7.3, P6.5 | А: полный Observer/visibility/relevance, outcomes→Action Memory→Thinker, uncertain-effect reconciliation, anti-loop, два клиента и restart |
 
-## Сквозные проверки на каждой фазе
+**Контракты:** Gnome Scheduler управляет inference jobs, Goal Scheduler — игровыми целями; ActionResult фиксирует исход, а не обещание LLM. Snapshot свежести валидируется повторно перед world effect. Root/collision authority у Minecraft server; cosmetic pose не телепортирует gameplay entity.
+**Результат/выход:** NPC самостоятельно выбирает допустимую цель, подходит/следует/взаимодействует, реагирует на препятствие и меняет план по исходу; взгляд/жесты/эмоции/ходьба смешиваются. Проверить отказ, отмену, повтор, потерю соединения и двух игроков. **Отложено:** addons P10, голос P8. **Риски:** двойной side effect после crash, path cost, race между планом и миром; не обещать exactly-once внешнему миру без reconciliation. Автономность не считается готовой по одному mocked LLM-плану.
 
-- Build и тесты соответствующего модуля.
-- Одиночный мир: действие → UI → server state → сохранение → повторная загрузка.
-- Dedicated server: подключение минимум двух игроков и проверка их изоляции.
-- Проверка API timeout/error и отсутствие блокировки server thread.
-- Проверка сетевого доступа: клиент не получает секреты и чужие приватные данные.
-- Проверка совместимости: изменение только необходимых точек интеграции.
-- Отчёт о работе и обновление журнала.
+## P8. Голос и синхронизация лица
 
-## Правила обновления плана
+**Цель:** слышимая речь с корректным lip-sync. **Предусловия:** P2, P3, P4; P7 не требуется технически. **Подсистемы:** TTS, audio queue/cache/transport, Face Controller.
 
-Любое изменение порядка фаз или критерия выхода должно сопровождаться:
-1. отдельным отчётом в `docs/reports/`;
-2. обновлением этого файла;
-3. ADR, если изменение влияет на архитектурное решение;
-4. обновлением [журнала](DEVELOPMENT_LOG.md).
+| Задача | Зависит от | Результат и проверка |
+|---|---|---|
+| P8.1 TTS preset, per-NPC voice и timeline | P2.3, P4.2 | А: bounded async synthesis, cache keys, capability visemes/timing, timeout и текстовый fallback |
+| P8.2 Playback и face integration | P8.1, P3.3 | А: real audio clock→mouth, отдельные emotion channels, очередь/interrupt, join/seek/stale audio, два клиента и privacy policy |
+
+**Контракты:** UtteranceId, audio format/hash, start clock, viseme timeline, cancellation; при отсутствии phoneme API допускается явно обозначенный анализ аудио, не случайное движение рта. **Результат/выход:** фраза слышна адресатам согласно scope, губы следуют playback, emotion сохраняется, отмена прекращает audio и mouth; текст работает при отказе TTS. **Отложено:** расширенные голосовые интеракции P10. **Риски:** drift, latency, повторный playback, bandwidth и секреты provider.
+
+## P9. Законченный companion-релиз
+
+**Цель:** устойчивый самостоятельный продукт без Create/авторского мира. **Предусловия:** P1–P8. **Подсистемы:** все, эксплуатация и extension boundary.
+
+| Задача | Зависит от | Результат и проверка |
+|---|---|---|
+| P9.1 Регрессия, миграции и совместимость | P7.4, P8.2 | А/В: integrated/dedicated, online identity в разрешённом окружении, malformed packets, ACL failures, upgrade/rollback/restore, моды exact matrix; воспроизведение native crash при повторении |
+| P9.2 Качество и длительная работа | P9.1 | В: несколько NPC/игроков, soak/restart, queue/cost/memory/bandwidth budgets; сцены anime quality, face/body/physics и autonomy; устранить критические дефекты |
+| P9.3 Настройки, документация и API freeze | P9.2 | А: performance/API-cost controls, полный пользовательский сценарий установки/пакетов/персонажей/providers, stable versioned optional Addon API на проверенных Action/Goal/Event contracts |
+
+**Контракты:** release compatibility matrix, save migrations, public extension versions. **Результат/выход:** все исходные companion-возможности проходят воспроизводимые сценарии; ограничения и поддерживаемые версии опубликованы, public artifacts не содержат restricted assets/секретов. Локальный реестр временных моделей может оставаться до P10, но выпускать их нельзя уже здесь. **Отложено:** перенос мира/конкретные addons. **Риски:** масштаб, крайние сочетания материалов/модов, неопределённое «качество ZZZ» — оценивать по зафиксированным визуальным сценам и бюджетам, не заявлять эквивалентность по компиляции.
+
+## P10. Авторский мир, addons и полная версия
+
+**Цель:** перенести мир Агнор и расширить готовое ядро. **Предусловия:** P9. **Подсистемы:** migration tools/workflow, content, optional addons.
+
+| Задача | Зависит от | Результат и проверка |
+|---|---|---|
+| P10.1 Перенос мира и персонажей | P9.3 | А: inventory/mapping, sandbox conversion, checkpoints/rollback, реальные NPC/пакеты, сценарии локаций |
+| P10.2 Addons и расширенные интеракции | P9.3 | Б: проверить доступную Fabric/Create matrix до adapter; А: addon failure isolation/versioning, дополнительные voice/world interactions |
+| P10.3 Финальный выпуск | P10.1, P10.2 | В: полный сценарий мира, замена/удаление всех temporary assets, аудит дистрибутива и сохранений |
+
+**Контракты:** стабильный Addon API, migration mappings/version/checkpoint, реестр происхождения. **Результат/выход:** мир перенесён, запрещённых временных моделей нет, optional integration не становится зависимостью ядра. При недоступной совместимой версии Create — документированное optional ограничение, не смена платформы без отдельного решения. **Отложено:** только расширения сверх согласованной цели. **Риски:** объём авторского контента, права и доступность сторонних модов.

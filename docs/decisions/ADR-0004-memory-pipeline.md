@@ -1,5 +1,7 @@
 # ADR-0004: Шесть хранилищ памяти и pipeline гномиков
 
+> Фазовые предписания пересмотрены 2026-11-05 в [ADR-0009](ADR-0009-dependency-driven-plan.md); функциональное решение сохраняется.
+
 - **Статус:** Accepted; схемы данных и алгоритмы требуют прототипирования
 - **Дата:** 2026-11-02
 - **Область:** AI / Memory / Persistence
@@ -27,23 +29,15 @@ NPC должен помнить диалоги, факты, действия и�
 - **Bot:** преобразует намерения в безопасные игровые действия и визуальные команды. Действия исполняются только через серверный валидатор и whitelist.
 - **Summarizer:** после каждых 10 сообщений обновляет сводку на основе предыдущей версии и новых данных. Нужен watermark, чтобы исключить повторную обработку.
 
-## Межфазные зависимости и совместная активация
+## Зависимости и поэтапная активация (пересмотр ADR-0009)
 
-Схемы шести хранилищ могут быть подготовлены в Фазе 6, но store считается рабочей функцией только после подключения реального producer/consumer:
-- Action Memory: schema/API в Фазе 6; ограниченный Event Feed producer и первые записи для Thinker/Summarizer подключаются в Фазе 7; полный World Observer и фактические outcomes от Bot/Action Executor расширяют поток в Фазе 8.
-- Thoughts: schema/API в Фазе 6; writer Thinker и reader Memorizer запускаются совместно в Фазе 7.
-- Diary: Judge принимает Memorizer candidates и пишет записи, которые читает Thinker; candidate → Judge → Diary → Thinker является единым acceptance path Фазы 7.
-- Daily Summary: store создаётся в Фазе 6; Summarizer получает Conversation History из Фазы 5 и Event Feed Фазы 7; Thinker использует сохранённую Summary в рамках той же интеграции.
+Каждый store создаётся с writer: History — Dialogue P2; Lorebook — пользователь/pack P5; Action Memory — Event Feed P6.1; Thoughts — Thinker P6.2; Diary — Judge P6.3; Summary — Summarizer P6.4. Общий Storage Facade вводится с NPC P1, но не создаёт заранее AI queues и пустые repositories.
 
-Четыре когнитивных гномика (Memorizer, Judge, Thinker, Summarizer), Gnome Scheduler и Event Feed вводятся как одна вертикальная интеграция в Фазе 7. Их можно покрывать unit/contract тестами по отдельности, но ни один сервис не объявляется функционально завершённым без общего end-to-end цикла и проверок повторов, restart, watermark, scope и отказов.
+Scheduler + Thinker/Thoughts, Memorizer + Judge/Diary, Summarizer/Summary принимаются последовательными срезами. До активации источника ContextBuilder показывает NOT_YET_ENABLED; после активации допустим AVAILABLE_EMPTY. Итог P6 требует полного feedback-цикла и restart/scope/failure tests; он не запрещает завершать отдельные срезы раньше.
 
-Dialogue events, которые возникли в Фазе 5 до появления gnome workers, доставляются через transactional outbox. Для каждого event ID и каждого consumer ID (Memorizer/Summarizer/Thinker) ведётся отдельный delivery state, claim/lease, attempt, idempotency key и watermark. Один consumer не может подтвердить событие за другого. Gnome Scheduler Фазы 7 регистрирует consumers и replay-ит pending deliveries; streaming partial messages не образуют memory events. Durable History write и соответствующий outbox event фиксируются атомарно. Outbox является механизмом запуска/доставки consumer jobs, а не копией содержания в Action Memory: текст и message records остаются в Conversation History; Action Memory получает только отдельные typed world/action events от Event Feed.
+History commit атомарен с outbox event. До workers хранится protected replay range; per-consumer cursor/delivery/lease создаётся при активации, ack атомарен с durable task/aggregation. Один consumer не подтверждает другого. Recent-N не удаляет непрочитанный source; privacy deletion явно завершает ссылку как SOURCE_DELETED. Текст не копируется в Action Memory. Детали — Blueprint §0.8.
 
-Bot остаётся пятым гномиком. В Фазе 7 фиксируется только его typed plan/action-intent contract; runtime Bot реализуется в Фазе 8 одновременно с Goal Scheduler, полным World Observer, Action Validator/Executor, Navigation и Motion Engine bridge.
-
-Thinker goal proposals в Фазе 7 сохраняются в durable Goal Proposal Inbox/Outbox через общий Storage Facade со scope, evidence, ID, expiry и pending status; запись связана с Thought и не является седьмым хранилищем памяти. Фаза 8 атомарно claims/validates proposal и отмечает его обработанное состояние, чтобы исключить повторное исполнение. До готовности Goal Scheduler Фазы 8 proposals не запускают игровые действия и не изменяют мир.
-
-Gnome Task Scheduler и Goal Scheduler — разные компоненты. Первый управляет фоновыми worker jobs гномиков; второй управляет игровыми целями NPC и появляется в Фазе 8. Между ними не используется общая незащищённая in-memory очередь: handoff выполняется через durable proposal record.
+Thinker пишет validated proposals атомарно с Thought в Goal Proposal Inbox: ID/scope/evidence/expiry/PENDING. Это не седьмое хранилище памяти. До Goal Scheduler P7 proposals не меняют мир. Gnome Scheduler управляет background inference, Goal Scheduler — игровыми целями. P7 сначала проверяет ручную цель/validator/executor/navigation, затем подключает Bot и Thinker; в конце обязателен полный автономный цикл.
 
 ## Каноническая единица message count и consumer trigger policy
 
@@ -54,7 +48,7 @@ Gnome Task Scheduler и Goal Scheduler — разные компоненты. П
 
 Default Summary threshold — каждые 10 committed message records. Threshold определяется по monotonic message sequence/watermark, не по client timestamp; предыдущая сводка фиксирует точный source range. Повторный replay не увеличивает count второй раз.
 
-Phase 7 Gnome Task Scheduler применяет разные trigger policies:
+P6 Gnome Task Scheduler применяет разные trigger policies:
 - Memorizer coalesces contiguous unprocessed finalized History ranges (History + Thoughts only) в scoped task.
 - Summarizer учитывает каждый committed History record, но создаёт summary task только при достижении threshold; previous summary и watermark фиксируют диапазон.
 - Thinker запускается по `ConversationTurnFinalized` (после финального ответа NPC), значимым world/NPC events и периодическому интервалу около 30 секунд. Частые события coalesce-ятся до одной pending task на NPC/scope; streaming chunk не вызывает Thinker.
@@ -64,7 +58,7 @@ Outbox delivery для каждого consumer может стать ENQUEUED/ac
 
 ## Доступность семантического поиска по фазам
 
-Lorebook и Diary schema могут быть созданы в Фазе 6; Always/exact/keyword retrieval доступен тогда же. Semantic-only retrieval не считается готовым до Embedding adapter Фазы 7. До этого такие записи имеют явное состояние NOT_YET_ENABLED либо применяют явно настроенный fallback; отсутствие embedding не должно выглядеть как успешный пустой semantic result.
+Lorebook создаётся в P5, Diary — с Judge в P6.3; Always/exact/keyword Lorebook retrieval доступен с P5, keyword Diary retrieval — с его writer. Semantic-only retrieval не считается готовым до Embedding adapter P6. До этого такие записи имеют явное состояние NOT_YET_ENABLED либо применяют явно настроенный fallback; отсутствие embedding не должно выглядеть как успешный пустой semantic result.
 
 ## Метаданные воспоминаний
 
@@ -82,7 +76,7 @@ Lorebook и Diary schema могут быть созданы в Фазе 6; Alway
 
 ## Открытые вопросы
 
-- Формат и миграции SQLite.
+- Backend (SQLite/JSON) и минимальные миграции — P1.1/P1.2; последующие schema extensions — с writers.
 - Векторный индекс и fallback при недоступности embedding.
 - Точное определение «дня» для сводки.
 - Политика хранения мыслей и срока жизни временных наблюдений.

@@ -1,0 +1,8 @@
+.gradle/
+build/
+run/
+run-server/
+.idea/
+*.iml
+.vscode/
+local-assets/

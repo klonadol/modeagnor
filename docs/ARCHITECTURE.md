@@ -1,5 +1,7 @@
 # Архитектура AGNOR
 
+Документ описывает целевые границы, не готовые модули. Фактическая реализация — [PROJECT_MAP](PROJECT_MAP.md); порядок и gates — только [ROADMAP](ROADMAP.md). Уточнения staged activation/outbox/server pose — Blueprint §0.8 и ADR-0009.
+
 **Статус:** проектная архитектура, не описание уже реализованной системы.  
 **Целевая платформа:** Minecraft 1.21.1, Fabric, Java 21.  
 **Приоритет первого продукта:** автономные ИИ-компаньоны с полноценными 3D-аниме-моделями, диалогом, памятью, голосом и поведением. Перенос мира Агнор — последующее расширение.
@@ -119,11 +121,11 @@ Minecraft (Fabric 1.21.1)
 
 Личность и конфигурация являются данными. Runtime State — изменяемое состояние конкретного NPC в конкретном мире. Они не должны сливаться в один файл без необходимости.
 
-**Порядок реализации:** базовая Character Definition schema и Registry появляются вместе с Character Runtime. На этой стадии используется встроенный/dev source. Content Packs позже регистрируют внешние definitions через тот же Registry и versioned schema; отдельный pack-only формат персонажа запрещён. Goal Scheduler и Action Executor описаны здесь как логические компоненты, но их рабочая вертикальная реализация относится к Фазе 8, когда готовы Bot, World Observer, Navigation и проверки действий.
+**Порядок реализации:** базовая Character Definition schema и Registry появляются вместе с Character Runtime. На этой стадии используется встроенный/dev source. Content Packs позже регистрируют внешние definitions через тот же Registry и versioned schema; отдельный pack-only формат персонажа запрещён. Goal Scheduler и Action Executor описаны здесь как логические компоненты, но их рабочая вертикальная реализация относится к P7, когда готовы Bot, World Observer, Navigation и проверки действий.
 
-NPC server runtime не зависит от клиентского renderer. В Фазе 2 сервер создаёт и сохраняет Character Runtime по UUID даже если модельный runtime ещё не подключён; model/asset references остаются данными Character Definition. Клиенты получают безопасный placeholder state `PRESENTATION_NOT_READY`. В Фазе 3 Character Presentation Adapter привязывает renderer/rig/pose controller к уже существующему NPC UUID и snapshots. Он не создаёт второй NPC identity/lifecycle и не является prerequisite для server activation. Если клиент не имеет подходящего ассета или renderer capability, placeholder сохраняется, а NPC logic продолжает работать.
+NPC server runtime не зависит от клиентского renderer. В P1 сервер создаёт и сохраняет Character Runtime по UUID даже если модельный runtime ещё не подключён; model/asset references остаются данными Character Definition. Клиенты получают безопасный placeholder state `PRESENTATION_NOT_READY`. В P3 Character Presentation Adapter привязывает renderer/rig/pose controller к уже существующему NPC UUID и snapshots. Он не создаёт второй NPC identity/lifecycle и не является prerequisite для server activation. Если клиент не имеет подходящего ассета или renderer capability, placeholder сохраняется, а NPC logic продолжает работать.
 
-Memory/task scope, создаваемые вместе с NPC в Phase 2, — это только стабильные ownership keys и namespace identifiers. Они не означают, что database stores, Gnome Task Scheduler queues или workers уже существуют. Repositories подключаются в Phase 6; фоновые consumers — в Phase 7/8. NPC lifecycle hooks могут публиковать типизированные domain events через общий mod event boundary, но их AI/event-memory consumers активируются позднее.
+Memory/task scope, создаваемые вместе с NPC в P1, — это только стабильные ownership keys и namespace identifiers. Они не означают, что database stores, Gnome Task Scheduler queues или workers уже существуют. Repositories подключаются в P5; фоновые consumers — в P6 / P7. NPC lifecycle hooks могут публиковать типизированные domain events через общий mod event boundary, но их AI/event-memory consumers активируются позднее.
 
 ## 5. Система памяти
 
@@ -148,9 +150,10 @@ Memory/task scope, создаваемые вместе с NPC в Phase 2, — э
 
 Player identity должна основываться на UUID, а ник использоваться только как отображаемое имя. Одинаковые ники не должны объединять профили.
 
-**Поэтапное подключение источников:** Context Builder — один сервис, создаваемый вместе с диалогом в Фазе 5. Сначала он использует Character Definition/system policy, Runtime/Relationship snapshot и Conversation History. В Фазе 6 он подключает Lorebook, Diary, Action Memory, Thoughts и Daily Summary через расширяемый Context Source Registry. Для источника различаются состояния `NOT_YET_ENABLED`, `AVAILABLE_EMPTY`, `AVAILABLE_WITH_DATA`, `TEMPORARILY_UNAVAILABLE` и `FORBIDDEN`; отсутствие ещё не реализованного хранилища нельзя выдавать модели за отсутствие воспоминаний.
+**Поэтапное подключение источников:** Context Builder — один сервис, создаваемый вместе с диалогом в P2. Сначала он использует Character Definition/system policy, Runtime/Relationship snapshot и Conversation History. В P5 он подключает Lorebook, в P6 — Diary, Action Memory, Thoughts и Daily Summary по мере появления их writers через расширяемый Context Source Registry. Для источника различаются состояния `NOT_YET_ENABLED`, `AVAILABLE_EMPTY`, `AVAILABLE_WITH_DATA`, `TEMPORARILY_UNAVAILABLE` и `FORBIDDEN`; отсутствие ещё не реализованного хранилища нельзя выдавать модели за отсутствие воспоминаний.
 
-**Durable handoff к гномикам:** каждая durable Conversation History write для accepted inbound message и finalized assistant response атомарно создаёт outbox event с message ID, scope, direction/status, sequence и correlation ID. Delivery state ведётся отдельно для каждой пары event ID + consumer ID: pending/claimed/completed/failed, lease/attempt metadata, idempotency key и собственный watermark. Поэтому Memorizer, Summarizer и Thinker независимо claim/replay-ят событие; завершение одного consumer не подтверждает его за других. В Phase 5 gnome consumers disabled; records остаются pending. В Phase 7 Gnome Task Scheduler регистрирует consumers и claim/replay-ит их delivery records идемпотентно. Streaming partial не создаёт memory event. Так диалоговая функция не зависит от ещё не созданных worker queues и не теряет события между фазами.
+**Durable handoff к гномикам:** каждая durable History write (accepted inbound, final reply) атомарно создаёт outbox event с scope/message ID/sequence. До появления consumers хранится защищённый replay range. При активации каждого consumer создаются его cursor/deliveries/leases и jobs: independent ack атомарен с durable task/aggregation. Recent-N не удаляет необработанные sources; privacy deletion завершает ссылки явно как SOURCE_DELETED. Streaming partial не создаёт memory event; текст не копируется в Action Memory. Подробный lifecycle — Blueprint §0.8. Это сохраняет replay без преждевременных worker queues.
+
 
 **Consumer trigger policy для dialogue outbox:** Memorizer объединяет новые finalized History ranges в scoped tasks; Summarizer считает каждую committed message record и создаёт summary task только после threshold (default 10 records); Thinker запускается по `ConversationTurnFinalized`, важным world/NPC events и периодическому интервалу около 30 секунд с coalescing. Accepted inbound и finalized assistant reply считаются отдельными message records; streaming partial/system/retry не считаются. Outbox delivery подтверждается только вместе с durable worker task/aggregation watermark; task execution/retry отслеживаются отдельно.
 
@@ -176,7 +179,7 @@ Judge получает кандидата и найденные существу
 
 Запускается по интервалу (целевой default — 30 секунд) и по важным внешним событиям. Его результат — компактное структурированное состояние и планы. Не сохранять и не запрашивать дословную скрытую цепочку рассуждений модели. Хранить проверяемые выводы, цели, эмоции и обоснования в краткой форме.
 
-Thinker не может полноценно потреблять Action Memory раньше, чем существует producer событий. Поэтому в Фазе 7 вместе с когнитивными гномиками включается минимальный server-side Event Feed Foundation, наполняющий Action Memory релевантными событиями игроков/NPC. При activation feed формирует baseline snapshot текущего NPC/world state; события до включения не реконструируются и не выдаются за наблюдавшиеся. Phase 5 dialogue outbox replay-ится отдельно как jobs Memorizer/Summarizer/Thinker и не копируется в Action Memory. Полный World Observer и записи фактических outcomes от автономных действий расширяются в Фазе 8 вместе с Action Runtime.
+Thinker не может полноценно потреблять Action Memory раньше, чем существует producer событий. Поэтому в P6 вместе с когнитивными гномиками включается минимальный server-side Event Feed Foundation, наполняющий Action Memory релевантными событиями игроков/NPC. При activation feed формирует baseline snapshot текущего NPC/world state; события до включения не реконструируются и не выдаются за наблюдавшиеся. P2 dialogue outbox replay-ится отдельно как jobs Memorizer/Summarizer/Thinker и не копируется в Action Memory. Полный World Observer и записи фактических outcomes от автономных действий расширяются в P7 вместе с Action Runtime.
 
 ### Summarizer
 
@@ -186,11 +189,11 @@ Thinker не может полноценно потреблять Action Memory 
 
 Гномики — специализированные фоновые сервисы, а не пять бесконечных циклов LLM.
 
-**Не смешивать два планировщика:** Gnome Task Scheduler управляет фоновыми AI worker jobs (очереди, provider concurrency, retry, cancellation); Goal Scheduler управляет игровыми целями NPC, dependencies, preemption и действием в мире. Первый вводится с когнитивными гномиками в Фазе 7; второй — вместе с Bot/Action/Navigation в Фазе 8. Между ними передаются durable goal proposals, а не общая незащищённая in-memory очередь.
+**Не смешивать два планировщика:** Gnome Task Scheduler управляет фоновыми AI worker jobs (очереди, provider concurrency, retry, cancellation); Goal Scheduler управляет игровыми целями NPC, dependencies, preemption и действием в мире. Первый вводится с когнитивными гномиками в P6; второй — вместе с Bot/Action/Navigation в P7. Между ними передаются durable goal proposals, а не общая незащищённая in-memory очередь.
 
-**Порядок интеграции:** Фаза 7 совместно реализует Scheduler и четыре когнитивных гномика — Memorizer, Judge, Thinker и Summarizer — вместе с минимальным Event Feed. Их acceptance общий: Memorizer читает Thoughts, которые пишет Thinker; Judge пишет Diary, который читает Thinker; Summarizer обновляет Summary, которую читает Thinker. Ни один из этих сервисов не принимается как законченный изолированный продукт до проверки полного цикла.
+**Порядок интеграции:** компоненты cognition подключаются проверяемыми срезами: Event Feed → Thinker/Thoughts → Memorizer/Judge/Diary → Summarizer/Summary. Каждый срез допускает ограниченную приёмку; полная P6 требует общего цикла и отказных сценариев. Runtime feedback не является требованием одновременной реализации.
 
-Bot — пятый гномик, но его runtime implementation зависит от Goal Scheduler, Action Validator/Executor и Navigation. Поэтому в Фазе 7 фиксируются typed plan/action contracts, а сам Bot реализуется в Фазе 8 одновременно с этими потребителями и полным World Observer. Thinker proposals до этого хранятся в durable pending inbox и не исполняются.
+Bot — пятый гномик, но его runtime implementation зависит от Goal Scheduler, Action Validator/Executor и Navigation. Поэтому в P6 фиксируются typed plan/action contracts, а Bot подключается в P7 после минимального проверенного Action/Navigation среза; итог P7 замыкает цикл с полным World Observer. Thinker proposals до этого хранятся в durable pending inbox и не исполняются.
 
 Общие требования:
 - отдельные очереди и лимиты параллелизма;
@@ -217,7 +220,7 @@ Bot — пятый гномик, но его runtime implementation зависи
 
 Ошибки одного провайдера не должны блокировать другие подсистемы. Для каждого назначения нужен понятный fallback или безопасный отказ.
 
-**Поэтапная активация:** общий Provider Gateway и Preset Registry создаются для диалога в Фазе 5; здесь требуется активный только Main Dialogue preset. Назначения/слоты для cognitive gnomes и Embedding становятся активными в Фазе 7, Bot — в Фазе 8, TTS — в Фазе 9 вместе с их consumers. Наличие конфигурационного slot не означает, что consumer/provider capability уже подключены; NOT_YET_ENABLED для будущих назначений не блокирует основной диалог.
+**Поэтапная активация:** общий Provider Gateway и Preset Registry создаются для диалога в P2; здесь требуется активный только Main Dialogue preset. Назначения/слоты для cognitive gnomes и Embedding становятся активными в P6, Bot — в P7, TTS — в P8 вместе с их consumers. Наличие конфигурационного slot не означает, что consumer/provider capability уже подключены; NOT_YET_ENABLED для будущих назначений не блокирует основной диалог.
 
 ## 8. Высококачественные 3D-персонажи, Agnor Motion Engine и физика
 
@@ -239,7 +242,7 @@ Bot — пятый гномик, но его runtime implementation зависи
 Agnor Motion Engine — отдельная подсистема Character Runtime. Его принцип: ИИ формулирует **что персонаж хочет сделать**, а движок рассчитывает **как двигаться всем телом**, учитывая анатомию рига, ограничения суставов, цели, столкновения и конкурирующие задачи.
 
 
-**Порядок интеграции:** наличие renderer, rig, IK, gait и Face Controller не означает, что NPC уже умеет самостоятельно выбирать движения или осмысленно выражать эмоции. До появления источников намерений (диалог и гномики) эти компоненты проверяются только scripted test harness. Диалоговые реакции подключаются вместе с Фазой 5, внутренние эмоциональные состояния Thinker — в Фазе 7, связь мозга с событиями мира, Bot, navigation и реальными motion tasks — в Фазе 8, lip-sync от аудио/viseme timing — в Фазе 9. Поэтому техническая готовность Motion Engine и готовность живого поведения являются разными критериями.
+**Порядок интеграции:** наличие renderer, rig, IK, gait и Face Controller не означает, что NPC уже умеет самостоятельно выбирать движения или осмысленно выражать эмоции. До появления источников намерений (диалог и гномики) эти компоненты проверяются только scripted test harness. Диалоговые реакции подключаются в P3.5 к уже работающему диалогу P2, внутренние эмоциональные состояния Thinker — в P6, связь мозга с событиями мира, Bot, navigation и реальными motion tasks — в P7, lip-sync от аудио/viseme timing — в P8. Поэтому техническая готовность Motion Engine и готовность живого поведения являются разными критериями.
 
 Примеры семантических задач:
 - `look_at(target)` — посмотреть на цель;
@@ -354,7 +357,7 @@ Blender — инструмент адаптации, проверки topology/n
 
 Для моделей с неизвестными правами или извлечённых игровых ресурсов используется статус `unknown/restricted`. Их можно использовать локально, в том числе в собственной dev-сборке, JAR и Content Pack, на риск пользователя. Поскольку репозиторий публичный, сами файлы нельзя коммитить в Git, включать в публичные релизы/пакеты или автоматически раздавать другим игрокам.
 
-Для разработки допускаются временные локальные модели с неподтверждёнными или проблемными правами, если подходящая модель не найдена. Их можно использовать в собственных dev-сборках, локальных JAR и Content Packs. Сам файл нельзя публиковать в Git, включать в публичный дистрибутив или передавать другим игрокам через серверную синхронизацию. Для временной модели заполняется краткая запись в [Asset Replacement Register](assets/ASSET_REPLACEMENT_REGISTER.md): название, страница источника, прямая ссылка на скачивание (если есть), локальное расположение и предполагаемая замена. Замена всех таких моделей выполняется перед финальным релизом полной версии после переноса авторского мира в Minecraft (Фаза 11); первый самостоятельный companion-релиз (Фаза 10) не блокируется. Локальное использование не объявляется автоматически юридически разрешённым.
+Для разработки допускаются временные локальные модели с неподтверждёнными или проблемными правами, если подходящая модель не найдена. Их можно использовать в собственных dev-сборках, локальных JAR и Content Packs. Сам файл нельзя публиковать в Git, включать в публичный дистрибутив или передавать другим игрокам через серверную синхронизацию. Для временной модели заполняется краткая запись в [Asset Replacement Register](assets/ASSET_REPLACEMENT_REGISTER.md): название, страница источника, прямая ссылка на скачивание (если есть), локальное расположение и предполагаемая замена. Замена всех таких моделей выполняется перед финальным релизом полной версии после переноса авторского мира в Minecraft (P10); первый самостоятельный companion-релиз (P9) не блокируется. Локальное использование не объявляется автоматически юридически разрешённым.
 
 Условия HoYoverse ограничивают копирование, распространение и создание производных материалов без предварительного письменного разрешения. Поэтому модели ZZZ/Genshin/HSR нельзя включать в публичный дистрибутив Агнора без явного разрешения/подходящей лицензии. См. [HoYoverse Terms of Service](https://genshin.hoyoverse.com/en-us/company/terms). Этот документ не является юридическим заключением.
 
@@ -405,7 +408,7 @@ Content Pack может содержать манифест, определен�
 
 Нельзя загружать из Content Pack произвольные Java-классы/скрипты. Для новых исполняемых интеграций нужен отдельный Fabric addon с явным интерфейсом. Пакеты валидируются по схеме, ID, версиям и разрешённым типам ресурсов. Приватные ключи и данные мира не входят в пакеты.
 
-Промты, голосовые descriptors, facial profiles и declarative behavior settings — пассивные данные Content Pack. Pack Loader проверяет и регистрирует их, но не вызывает provider и не исполняет поведение. Dialogue consumer разрешает prompts начиная с Фазы 5; gnome consumers — в Фазе 7; Bot — в Фазе 8; TTS/voice — в Фазе 9. Отсутствующий consumer не блокирует загрузку остальных ресурсов пакета и имеет явный NOT_YET_ENABLED status.
+Промты, голосовые descriptors, facial profiles и declarative behavior settings — пассивные данные Content Pack. Pack Loader проверяет и регистрирует их, но не вызывает provider и не исполняет поведение. Dialogue consumer P2 разрешает внешние prompts после активации pack source в P4; gnome consumers — в P6; Bot — в P7; TTS/voice — в P8. Отсутствующий consumer не блокирует загрузку остальных ресурсов пакета и имеет явный NOT_YET_ENABLED status.
 
 ### Синхронизация клиентам
 
@@ -413,7 +416,7 @@ Content Pack может содержать манифест, определен�
 
 ## 10. Персистентность и изоляция
 
-Предварительный вариант — SQLite для структурированных данных и индексов, JSON для конфигураций и переносимых определений. Это направление требует прототипа и оценки объёма/конкурентной записи.
+Для первой NPC выбран SQLite: `<server-save>/agnor/state.db`, путь от `MinecraftServer.getSavePath(WorldSavePath.ROOT)`. [ADR-0010](decisions/ADR-0010-world-scoped-storage.md) задаёт WorldId, scope, transaction/lifecycle/errors и исключает общий `DataRoots.serverData`. Ограниченный SQLite/JSON fixture пройден; production Storage Facade и Java adapter ещё не реализованы. JSON для конфигураций/переносимых определений остаётся направлением. Индексы будущих подсистем, объём и конкурентная запись этим исследованием не проверены.
 
 Минимальный логический ключ данных: `world_id + npc_id + player_id (nullable) + record_id`. Для событий и сообщений — устойчивые UUID и timestamps. Для обновлений схемы — versioned migrations и резервное копирование перед миграцией.
 
@@ -435,7 +438,7 @@ Content Packs общие для установки, но данные мира �
 
 Любая дополнительная интеграция должна быть необязательной: отсутствие addon не ломает Character Runtime.
 
-Публичный Addon API не замораживается до появления реальных Action/Goal/Event contracts. В Phase 1 допустимы внутренние модульные границы; семантика расширяемых action/goal/event interfaces уточняется после Phase 8 и проходит compatibility freeze в Phase 10. Реальные addons разрабатываются в Phase 11.
+Публичный Addon API не замораживается до появления реальных Action/Goal/Event contracts. В P1 допустимы внутренние модульные границы; семантика расширяемых action/goal/event interfaces уточняется после P7 и проходит compatibility freeze в P9. Реальные addons разрабатываются в P10.
 
 ## 13. Открытые технические вопросы
 
@@ -456,8 +459,13 @@ Content Packs общие для установки, но данные мира �
 Для каждой функции различаются contract, implementation и runtime activation. Наличие интерфейса или таблицы в storage не означает, что producer/consumer уже существует.
 
 - Если функция зависит от источника, который появится позже, она должна работать в явно ограниченном режиме (например, Context Builder без ещё не подключённого Lorebook) либо сохранять durable pending item (например, Thinker goal proposal). Нельзя притворяться, что отсутствующий источник вернул корректно пустой результат.
-- Взаимозависимые компоненты принимаются как одна вертикальная интеграция: четыре когнитивных гномика + Scheduler + Event Feed в Phase 7; Bot + Goal Scheduler + World Observer + Action Validator/Executor + Navigation + Motion bridge в Phase 8; TTS + audio playback timing + lip-sync в Phase 9.
+- Взаимозависимые компоненты допускают отдельные вертикальные срезы с честным capability status; итоговые cognition, autonomy и voice integration принимаются после появления участников по ROADMAP.
 - Character Definition, Persistence и Context Builder имеют один versioned contract и расширяются источниками/адаптерами. Не создавать параллельные реализации при подключении Content Packs, памяти или диалога.
-- Motion Engine до появления источников поведения тестируется scripted driver. Dialogue reactions, Thinker affect, autonomous world movement и lip-sync подключаются только в соответствующих фазах 5, 7, 8 и 9.
+- Motion Engine до появления источников поведения тестируется scripted driver. Dialogue reactions, Thinker affect, autonomous world movement и lip-sync подключаются только в P3.5, P6, P7 и P8.
 
-Подробная матрица зависимостей и правила design/implementation/activation приведены в [IMPLEMENTATION_BLUEPRINT.md](IMPLEMENTATION_BLUEPRINT.md), разделы 0.10–0.11.
+Подробная матрица зависимостей и правила design/implementation/activation приведены в [IMPLEMENTATION_BLUEPRINT.md](IMPLEMENTATION_BLUEPRINT.md), разделы 0.5–0.8.
+
+
+### Уточнение владения pose
+
+Animation/Bone Layers на клиенте — представление и интерполяция host snapshots, GPU skinning/morph deformation. IK/FK pose solving, арбитраж задач и secondary physics принадлежат host, работают без клиентского ResourceManager/OpenGL. Выбор backend и бюджет такого разделения проверяется в P3.1/P3.5; собственного готового solver/renderer сейчас нет. Root movement/collision рассчитывает игровой сервер, а не renderer.

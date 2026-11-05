@@ -31,4 +31,4 @@ GeckoLib можно оценить для вспомогательных мод�
 
 ## Проверка
 
-**Ещё не выполнена.** На момент создания документации в репозитории нет исходного кода и build-файлов. До первой сборки необходимо подтвердить версии Fabric Loader/API, Loom, mappings и GeckoLib.
+**Bootstrap подтверждён 2026-11-04:** Minecraft 1.21.1, Java21, Loader 0.16.10, API 0.102.1+1.21.1, Loom 1.7.4, Yarn 1.21.1+build.3, Wrapper8.8; build/integrated/dedicated evidence — [отчёт 004](../reports/2026-11-04-004-phase-0-client-network.md). Это не доказательство совместимости будущего renderer. GeckoLib не является обязательной зависимостью bootstrap; выбор backend проверяется в P3.1.

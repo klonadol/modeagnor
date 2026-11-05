@@ -1,0 +1,37 @@
+sourceSets {
+    probe {
+        compileClasspath += sourceSets.client.compileClasspath + sourceSets.main.output + sourceSets.client.output
+        runtimeClasspath += sourceSets.client.runtimeClasspath
+    }
+}
+loom {
+    mods { agnor_probe { sourceSet sourceSets.probe } }
+    runs {
+        probeServer {
+            server()
+            runDir 'build/phase0/server'
+            programArg 'nogui'
+        }
+        ['A', 'B'].each { label ->
+            create("probe${label}") {
+                client()
+                source sourceSets.probe
+                runDir "build/phase0/client${label}"
+                property 'agnor.probe.label', label
+                vmArg '-Xmx1G'
+                programArgs '--username', "Probe${label}", '--quickPlayMultiplayer', '127.0.0.1:25575'
+            }
+        }
+    }
+}
+tasks.named('runProbeServer') {
+    doFirst {
+        def config = new Properties()
+        def configFile = file('build/phase0/server/server.properties')
+        if (!configFile.isFile()) throw new GradleException('Prepare the loopback-only server as described in docs/PHASE_0_SPIKES.md')
+        configFile.withInputStream { config.load(it) }
+        if (config.getProperty('server-ip') != '127.0.0.1' || config.getProperty('server-port') != '25575') {
+            throw new GradleException('Probe server must bind exclusively to 127.0.0.1:25575')
+        }
+    }
+}

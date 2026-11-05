@@ -1,5 +1,7 @@
 # ADR-0003: Внешние Content Packs вне JAR
 
+> Фазовые предписания пересмотрены 2026-11-05 в [ADR-0009](ADR-0009-dependency-driven-plan.md); функциональное решение сохраняется.
+
 - **Статус:** Accepted; детали пути и синхронизации требуют валидации
 - **Дата:** 2026-11-02
 - **Область:** Content / Models / Configuration
@@ -32,7 +34,7 @@
 
 Версия схемы/совместимости Content Pack относится только к декларативному формату пакета: manifest, Character Definitions, assets и declarative settings. Она не является версией executable Addon API.
 
-Content Pack Loader (Фаза 4) не загружает исполняемый код. Публичный Addon API для runtime actions/events/goals стабилизируется отдельно после появления реальных Action/Goal/Event contracts (Фаза 8) и проходит compatibility freeze перед первым addon (Фаза 10). Реальные addon-модули появляются после этого (Фаза 11).
+Content Pack Loader (P4) не загружает исполняемый код. Публичный Addon API для runtime actions/events/goals стабилизируется отдельно после появления реальных Action/Goal/Event contracts (P7) и проходит compatibility freeze перед первым addon (P9). Реальные addon-модули появляются после этого (P10).
 
 Это предотвращает зависимость Content Pack Manager от API, которого ещё нет, и не позволяет декларативному пакету стать механизмом обхода запрета на произвольный исполняемый код.
 
@@ -40,10 +42,10 @@ Content Pack Loader (Фаза 4) не загружает исполняемый 
 
 Content Pack Loader валидирует и регистрирует prompts, voice descriptors, facial profiles и declarative behavior settings как данные. Он не вызывает Provider Gateway, не запускает LLM/TTS и не исполняет поведение при scan/activation пакета.
 
-- Main Dialogue начинает разрешать prompt templates в Phase 5.
-- Cognitive gnomes и Embedding начинают использовать соответствующие preset/prompt sources в Phase 7.
-- Bot planning data/preset подключается в Phase 8.
-- Voice descriptors/TTS assets и voice preset подключаются в Phase 9.
+- Main Dialogue реализуется в P2, а внешние pack prompt templates разрешает после подключения Pack Loader в P4.
+- Cognitive gnomes и Embedding начинают использовать соответствующие preset/prompt sources в P6.
+- Bot planning data/preset подключается в P7.
+- Voice descriptors/TTS assets и voice preset подключаются в P8.
 
 Если соответствующего consumer/provider capability ещё нет, ресурс остаётся зарегистрированным с состоянием NOT_YET_ENABLED; это не блокирует загрузку независимых assets/definitions и не выдаёт ложный fallback за выполненную функцию. Host secrets и реальные credentials остаются вне Content Pack.
 
@@ -57,10 +59,10 @@ Content Pack Loader валидирует и регистрирует prompts, vo
 
 ## Открытые проверки
 
-- Фактический путь каталога на клиенте и dedicated server, включая права записи.
-- Поведение при запуске из нестандартного game directory.
+- Реальный ACL-denial и pack access policy: обычное создание каталогов уже подтверждено.
+- Loader/reload в нестандартном gameDir: DataRoots custom gameDir уже покрыт unit-тестом, загрузчик пакетов ещё отсутствует.
 - Формат ZIP-пакетов и защита от path traversal / чрезмерного распакованного размера.
 - Политика передачи ресурсов клиентам: trusted download, ручная установка или отказ при несовпадении.
 - Поддерживаемый pipeline моделей/анимаций и hot reload.
 
-До завершения этих проверок путь `mods/agnor/` является согласованной целью, но не подтверждённым поведением программы.
+Создание `<gameDir>/mods/agnor/` на клиенте и сервере подтверждено bootstrap evidence 2026-11-04. Загрузка/валидация/sync пакетов и world-scoped private storage этим не подтверждены.

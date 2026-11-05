@@ -1,16 +1,20 @@
 # Индекс документации AGNOR
 
-Этот файл — карта проекта: что читать, где фиксировать изменения и какие документы считать источником истины.
+Этот файл — индекс документации; фактическая структура — [PROJECT_MAP](PROJECT_MAP.md). Здесь указано: что читать, где фиксировать изменения и какие документы считать источником истины.
 
 ## Быстрая навигация
+
+Текущая реализация технических проверок: [протокол Фазы 0](PHASE_0_SPIKES.md) — bootstrap evidence, probe contract, команды запуска и перенесённые проверки; критерии задаёт только ROADMAP.
 
 | Нужно найти или изменить | Документ / каталог |
 |---|---|
 | Общее описание проекта и ссылки | [Корневой README](../README.md) |
+| Правила разработки и ссылки на документацию | [AGNOR Development Skill](../skills/agnor-development/SKILL.md) |
 | Компоненты, границы модулей, потоки данных | [ARCHITECTURE.md](ARCHITECTURE.md) |
-| Полная логика функций, карта producer/consumer-зависимостей, совместные вертикальные этапы, отказные сценарии и последовательность проектирования 0–11 | [IMPLEMENTATION_BLUEPRINT.md](IMPLEMENTATION_BLUEPRINT.md) |
+| Полная логика функций, contracts, producer/consumer-граф, runtime cycles и отказные сценарии; не порядок фаз | [IMPLEMENTATION_BLUEPRINT.md](IMPLEMENTATION_BLUEPRINT.md) |
 | Этапы, зависимости, критерии завершения | [ROADMAP.md](ROADMAP.md) |
 | Принятые технические решения | [DECISIONS.md](DECISIONS.md) и [decisions/](decisions/) |
+| Backend первой NPC и world-scoped storage contract (P1.1) | [ADR-0010](decisions/ADR-0010-world-scoped-storage.md), [отчёт и evidence](reports/2026-11-05-002-storage-contract.md) |
 | Требования к качеству моделей и физике | [ADR-0006](decisions/ADR-0006-character-visual-quality-and-physics.md) |
 | Процедурное движение, IK и Motion Engine | [ADR-0007](decisions/ADR-0007-procedural-motion-engine.md) |
 | Внешние готовые 3D-модели и их импорт | [ADR-0008](decisions/ADR-0008-reuse-external-character-assets.md) |
@@ -21,6 +25,21 @@
 | Шаблон ADR | [DECISION_TEMPLATE.md](templates/DECISION_TEMPLATE.md) |
 | Текущие требования и границы MVP | [ARCHITECTURE.md](ARCHITECTURE.md), разделы «Цели» и «Вне первой версии» |
 | Изменение порядка этапов | [ROADMAP.md](ROADMAP.md) |
+
+## Источники истины
+
+| Информация | Единственный ответственный источник |
+|---|---|
+| Функциональная цель и границы | ARCHITECTURE: цели/возможности; принятые требования ADR-0004/0006/0007/0008 |
+| Архитектурные границы и ownership | ARCHITECTURE + принятые ADR; изменение решения получает новый ADR |
+| Детальные алгоритмы, lifecycle, I/O | IMPLEMENTATION_BLUEPRINT, технические разделы 1–29 |
+| Порядок задач и критерии завершения | ROADMAP P0–P10; другие документы только ссылаются на него |
+| Фактический прогресс | DEVELOPMENT_LOG → отчёт → конкретный код/runtime evidence |
+| Фактическая структура/наличие компонентов | [PROJECT_MAP](PROJECT_MAP.md), сверяется с filesystem |
+| Инструкции Codex | [Проектный skill](../skills/agnor-development/SKILL.md) |
+| Основания перестановки и аудит старых задач | [Аудит](reports/2026-11-05-001-architecture-replan.md), [PLAN_MIGRATION](PLAN_MIGRATION.md) |
+
+Отчёты до 2026-11-05 и [архив](archive/) сохраняют историческую нумерацию 0–11. Их статусы/«следующий шаг» описывают тот момент, **не являются действующими инструкциями**. Прежняя широкая фаза 0 не выполнена; новая P0 закрыта в ином явно утверждённом объёме. Документы цели не доказывают реализацию.
 
 ## Куда писать
 

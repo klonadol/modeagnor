@@ -6,12 +6,17 @@
 |---|---|---|---|
 | [ADR-0001](decisions/ADR-0001-platform.md) | Платформа | Accepted | Minecraft 1.21.1, Fabric, Java 21 |
 | [ADR-0002](decisions/ADR-0002-host-authoritative-runtime.md) | Модель исполнения | Accepted | Хост — авторитетная сторона для ИИ, памяти и игровых действий |
-| [ADR-0003](decisions/ADR-0003-content-packs.md) | Внешний контент | Accepted with validation | Пакеты вне JAR; точный путь и синхронизация требуют технической проверки |
+| [ADR-0003](decisions/ADR-0003-content-packs.md) | Внешний контент | Accepted with validation | Пакеты вне JAR; общий каталог проверен, loader/sync ещё не реализованы |
 | [ADR-0004](decisions/ADR-0004-memory-pipeline.md) | Память и гномики | Accepted with open details | Шесть хранилищ; Memorizer анализирует историю и мысли |
 | [ADR-0005](decisions/ADR-0005-optional-integrations.md) | Интеграции | Accepted | Create и другие интеграции остаются необязательными |
 | [ADR-0006](decisions/ADR-0006-character-visual-quality-and-physics.md) | Качество 3D и физика | Accepted target; renderer pending | Цель — stylized anime action-RPG и secondary physics уровня ZZZ; конкретный renderer выбирается после прототипа |
 | [ADR-0007](decisions/ADR-0007-procedural-motion-engine.md) | Процедурное движение | Accepted direction; solvers pending | Семантические задачи, Whole Body Controller, IK, процедурная локомоция, host-side physics; клипы остаются строительным материалом |
 | [ADR-0008](decisions/ADR-0008-reuse-external-character-assets.md) | Внешние модели | Accepted | Готовые модели из интернета и пользовательских библиотек — приоритет; Blender используется для адаптации; права и синхронизация учитываются отдельно |
+| [ADR-0009](decisions/ADR-0009-dependency-driven-plan.md) | Зависимости и критерии фаз | Accepted | P0 bootstrap; решения just-in-time; последовательные вертикальные срезы; частично пересматривает фазовые предписания ADR-0003–0008 |
+
+ADR-0003–0008 сохраняют функциональные решения; прежние фазовые предписания частично заменены ADR-0009.
+
+[ADR-0010: World-scoped storage](decisions/ADR-0010-world-scoped-storage.md) — **Accepted, P1.1**: SQLite для первой NPC, одна БД на save, общий legacy serverData запрещён для приватных данных. Решение подтверждено ограниченным fixture; production Java adapter/Facade не реализованы.
 
 ## Как регистрировать решение
 

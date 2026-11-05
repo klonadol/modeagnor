@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "id": "agnor_probe",
+  "version": "1.0.0",
+  "name": "AGNOR Phase 0 Probe Harness",
+  "environment": "client",
+  "entrypoints": { "client": ["dev.agnor.probe.ProbeHarness"] },
+  "depends": { "agnor": "*", "fabric-api": "*" }
+}
