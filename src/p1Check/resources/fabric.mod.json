@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"agnor_p1_check","version":"1.0.0","environment":"*","entrypoints":{"main":["dev.agnor.check.P1ServerCheck"],"client":["dev.agnor.check.P1ClientCheck"]},"depends":{"agnor":"*"}}

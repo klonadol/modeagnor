@@ -1,0 +1,34 @@
+sourceSets {
+    lifecycleCheck {
+        compileClasspath += sourceSets.client.compileClasspath + sourceSets.main.output + sourceSets.client.output
+        runtimeClasspath += sourceSets.client.runtimeClasspath + sourceSets.main.output + sourceSets.client.output
+    }
+}
+loom {
+    mods { agnor_lifecycle_check { sourceSet sourceSets.lifecycleCheck } }
+    runs {
+        lifecycleCheck {
+            server()
+            source sourceSets.lifecycleCheck
+            runDir 'build/lifecycle-check/server'
+            programArg 'nogui'
+            property 'agnor.lifecycle.stage', providers.gradleProperty('lifecycleStage').getOrElse('1')
+        }
+        lifecycleClient {
+            client()
+            source sourceSets.lifecycleCheck
+            runDir 'build/lifecycle-check/client'
+            property 'agnor.lifecycle.stage', providers.gradleProperty('lifecycleStage').getOrElse('1')
+            vmArg '-Xmx1G'
+            programArgs '--username', 'LifecycleCheck', '--quickPlaySingleplayer', 'check-world'
+        }
+    }
+}
+tasks.named('runLifecycleCheck') {
+    doFirst {
+        def settings = new Properties()
+        file('build/lifecycle-check/server/server.properties').withInputStream { settings.load(it) }
+        if (settings.getProperty('server-ip') != '127.0.0.1' || settings.getProperty('server-port') != '25576')
+            throw new GradleException('Lifecycle check must bind exclusively to 127.0.0.1:25576')
+    }
+}

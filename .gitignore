@@ -6,3 +6,4 @@ run-server/
 *.iml
 .vscode/
 local-assets/
+logs/

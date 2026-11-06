@@ -1,0 +1,43 @@
+sourceSets {
+    p1Check {
+        compileClasspath += sourceSets.client.compileClasspath + sourceSets.main.output + sourceSets.client.output
+        runtimeClasspath += sourceSets.client.runtimeClasspath + sourceSets.main.output + sourceSets.client.output
+    }
+}
+loom {
+    mods { agnor_p1_check { sourceSet sourceSets.p1Check } }
+    runs {
+        p1Server {
+            server(); source sourceSets.p1Check
+            runDir 'build/p1-check/server'; programArg 'nogui'
+        }
+        ['A','B'].each { label ->
+            create("p1${label}") {
+                client(); source sourceSets.p1Check
+                runDir "build/p1-check/client${label}"; vmArg '-Xmx1G'
+                property 'agnor.p1.role', label
+                programArgs '--username', "P1${label}", '--quickPlayMultiplayer', '127.0.0.1:25577'
+            }
+        }
+        p1Integrated {
+            client(); source sourceSets.p1Check
+            runDir 'build/p1-check/integrated'; vmArg '-Xmx1G'
+            property 'agnor.p1.role', 'A'
+            property 'agnor.p1.integrated', 'true'
+            programArgs '--username', 'P1Integrated', '--quickPlaySingleplayer', 'p1-world'
+        }
+    }
+}
+tasks.withType(JavaExec).matching { it.name in ['runP1Server','runP1A','runP1B','runP1Integrated'] }.configureEach {
+    systemProperty 'agnor.p1.root', file('build/p1-check/coord').absolutePath
+    systemProperty 'agnor.p1.world', providers.gradleProperty('p1World').getOrElse('A')
+    systemProperty 'agnor.p1.stage', providers.gradleProperty('p1Stage').getOrElse('1')
+}
+tasks.named('runP1Server') {
+    doFirst {
+        def config = new Properties()
+        file('build/p1-check/server/server.properties').withInputStream { config.load(it) }
+        if (config.getProperty('server-ip') != '127.0.0.1' || config.getProperty('server-port') != '25577')
+            throw new GradleException('P1 fixture must use 127.0.0.1:25577')
+    }
+}

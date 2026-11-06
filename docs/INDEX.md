@@ -1,6 +1,20 @@
+P5.2 Verified 2026-11-06: [отчёт010](reports/2026-11-06-010-lore-context.md), [ADR0026](decisions/ADR-0026-lore-context-admission.md). Scoped ContextSourceRegistry/пять statuses/budget/source IDs,110tests PASS+3skipped. Real Ollama: A private COBALT-732/B pack PACK-AMBER, nonmatch и privacy PASS. Следующая P5.3; полная P5 не завершена.
+
+P5.1 Verified 2026-11-06: [отчёт009](reports/2026-11-06-009-lorebook-crud.md), [ADR0025](decisions/ADR-0025-lorebook-storage-and-sources.md), [команды Lorebook](MEMORY.md). Schema4/CRUD/scopes/activation/pack-local overrides,107tests PASS+3skipped, dedicated2clients PASS. Следующая P5.2, вся P5 ещё не завершена.
+
+**Актуально 2026-11-06: P4 Verified.** P4.1→P4.2→P4.3 завершены последовательно; [итог008](reports/2026-11-06-008-phase4-acceptance.md), [формат и команды](CONTENT_PACKS.md), [UI/sync007](reports/2026-11-06-007-pack-controls-sync.md), ADR0022–0024.102tests PASS/3opt-in skipped; dedicated2clients/restart/integrated/real Ollama PASS. Restricted payload0. Следующая P5 не начата. Нижние записи с прежними статусами — история своих срезов.
+
+P4.2 Verified 2026-11-06: [отчёт006](reports/2026-11-06-006-pack-activation.md), [ADR-0023](decisions/ADR-0023-content-generations-and-presentation.md). Atomic Registry/last-known-good, same UUID/external Firefly, dedicated+restart+integrated PASS;97tests PASS/3skipped. Следующая P4.3, вся P4 ещё не завершена.
+
+P4.1 Verified: [Content Packs v1](CONTENT_PACKS.md), [ADR-0022](decisions/ADR-0022-content-pack-schema-and-ingestion.md), [отчёт005](reports/2026-11-06-005-pack-ingestion.md). Следующая P4.2.
+
 # Индекс документации AGNOR
 
+**P3 Verified,2026-11-06:** P3.1–P3.5 последовательно завершены в документированных границах. [Итоговая приёмка и бюджеты](reports/2026-11-06-004-phase3-acceptance.md), [pose sync/dialogue/compat](reports/2026-11-06-003-pose-sync-dialogue.md), [визуальные ограничения](assets/FIREFLY_VISUAL_LIMITS.md). Dedicated2clients и integrated, реальный dialogue/retry, reconnect/mismatch/stale, selected Sodium/Iris/Complementary PASS;83tests PASS/3opt-in skipped. Локальный dev rig adapter до P4; full cloth/MToon/voice/navigation не заявлены. Следующая фаза P4 не начата.
+
 Этот файл — индекс документации; фактическая структура — [PROJECT_MAP](PROJECT_MAP.md). Здесь указано: что читать, где фиксировать изменения и какие документы считать источником истины.
+
+P3.1: [renderer capability evidence / отчёт 012](reports/2026-11-05-012-renderer-capability.md), [ADR-0017 и следующий adapter proof](decisions/ADR-0017-renderer-capability-spike.md), [команды fixture](../src/p3Check/README.md). Исследование завершено с отрицательным drop-in результатом, production renderer не выбран.
 
 ## Быстрая навигация
 
@@ -15,6 +29,11 @@
 | Этапы, зависимости, критерии завершения | [ROADMAP.md](ROADMAP.md) |
 | Принятые технические решения | [DECISIONS.md](DECISIONS.md) и [decisions/](decisions/) |
 | Backend первой NPC и world-scoped storage contract (P1.1) | [ADR-0010](decisions/ADR-0010-world-scoped-storage.md), [отчёт и evidence](reports/2026-11-05-002-storage-contract.md) |
+| Первая сохраняемая NPC, UUID и lifecycle (P1.3) | [ADR-0011](decisions/ADR-0011-npc-lifecycle.md), [сценарии и evidence](reports/2026-11-05-005-npc-lifecycle.md) |
+| Команды, права, private snapshots и завершение P1 | [ADR-0012](decisions/ADR-0012-npc-management-protocol.md), [итоговая приёмка](reports/2026-11-05-006-phase1-management.md), [команды пользователя](../README.md#минимальное-управление-npc) |
+| Main Dialogue Gateway/preset, P2.1 Verified | [ADR-0013](decisions/ADR-0013-main-dialogue-gateway.md), [реальный text-only Gateway PASS](reports/2026-11-05-008-provider-gateway-verified.md) |
+| History/единый Context Builder и private gameplay dialogue | [ADR-0014](decisions/ADR-0014-conversation-history-context.md), [ADR-0015](decisions/ADR-0015-dialogue-protocol.md), отчёты [009](reports/2026-11-05-009-history-context.md)/[010](reports/2026-11-05-010-dialogue-path.md) |
+| Завершение P2: local/cloud, host secrets и отказы | [ADR-0016](decisions/ADR-0016-cloud-mode-failure-policy.md), [итог 011](reports/2026-11-05-011-phase2-complete.md), [настройка/команды](../README.md#настройка-и-диалог) |
 | Требования к качеству моделей и физике | [ADR-0006](decisions/ADR-0006-character-visual-quality-and-physics.md) |
 | Процедурное движение, IK и Motion Engine | [ADR-0007](decisions/ADR-0007-procedural-motion-engine.md) |
 | Внешние готовые 3D-модели и их импорт | [ADR-0008](decisions/ADR-0008-reuse-external-character-assets.md) |

@@ -1,0 +1,21 @@
+sourceSets { create('p4Check') {
+    compileClasspath += sourceSets.client.compileClasspath + sourceSets.main.output + sourceSets.client.output
+    runtimeClasspath += sourceSets.client.runtimeClasspath + sourceSets.main.output + sourceSets.client.output
+} }
+loom {
+    mods { agnor_p4_check { sourceSet sourceSets.p4Check } }
+    runs {
+        p4Server { server(); source sourceSets.p4Check; runDir 'build/p4-check/server'; programArg 'nogui' }
+        ['A','B'].each { label -> create("p4${label}") {
+            client(); source sourceSets.p4Check; runDir "build/p4-check/client${label}"; vmArg '-Xmx1G'
+            property 'agnor.p4.role',label
+            programArgs '--username',"P4${label}",'--quickPlayMultiplayer','127.0.0.1:25586','--width','1280','--height','720'
+        } }
+        p4Integrated { client(); source sourceSets.p4Check; runDir 'build/p4-check/integrated'; vmArg '-Xmx2G';property 'agnor.p4.role','A';programArgs '--username','P4Integrated','--quickPlaySingleplayer','p4-world','--width','1280','--height','720' }
+    }
+}
+tasks.withType(JavaExec).matching { it.name in ['runP4Server','runP4A','runP4B','runP4Integrated'] }.configureEach {
+    systemProperty 'agnor.p4.root',file('build/p4-check/coord').absolutePath
+    systemProperty 'agnor.p4.stage',providers.gradleProperty('packStage').getOrElse('activation')
+    standardInput=new ByteArrayInputStream(new byte[0])
+}

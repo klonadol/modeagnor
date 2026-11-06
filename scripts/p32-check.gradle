@@ -1,0 +1,15 @@
+sourceSets { create('p32Check') {
+    compileClasspath += sourceSets.client.compileClasspath + sourceSets.main.output + sourceSets.client.output
+    runtimeClasspath += sourceSets.client.runtimeClasspath + sourceSets.main.output + sourceSets.client.output
+} }
+loom {
+    mods { agnor_p32_check { sourceSet sourceSets.p32Check } }
+    runs {
+        p32Server { server(); source sourceSets.p32Check; runDir 'build/p32-check/server'; programArg 'nogui' }
+        p32Client { client(); source sourceSets.p32Check; runDir 'build/p32-check/client'; programArgs '--username','P32','--quickPlayMultiplayer','127.0.0.1:25582' }
+    }
+}
+tasks.withType(JavaExec).matching { it.name in ['runP32Server','runP32Client'] }.configureEach {
+    systemProperty 'agnor.p32.root', file('build/p32-check').absolutePath
+    standardInput=new ByteArrayInputStream(new byte[0])
+}

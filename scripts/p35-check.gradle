@@ -1,0 +1,53 @@
+sourceSets { create('p35Check') {
+    compileClasspath += sourceSets.client.compileClasspath + sourceSets.main.output + sourceSets.client.output
+    runtimeClasspath += sourceSets.client.runtimeClasspath + sourceSets.main.output + sourceSets.client.output
+} }
+loom {
+    mods { agnor_p35_check { sourceSet sourceSets.p35Check } }
+    runs {
+        p35Server { server(); source sourceSets.p35Check; runDir 'build/p35-check/server'; programArg 'nogui' }
+        ['A','B'].each { label ->
+            create("p35${label}") {
+                client(); source sourceSets.p35Check; runDir "build/p35-check/client${label}"; vmArg '-Xmx1G'
+                property 'agnor.p35.role',label
+                programArgs '--username',"P35${label}",'--quickPlayMultiplayer','127.0.0.1:25584','--width','1280','--height','720'
+            }
+        }
+        p35Integrated { client(); source sourceSets.p35Check; runDir 'build/p35-check/integrated'; vmArg '-Xmx2G'; property 'agnor.p35.role','A'; programArgs '--username','P35Integrated','--quickPlaySingleplayer','p35-world','--width','1280','--height','720' }
+    }
+}
+tasks.withType(JavaExec).matching { it.name in ['runP35Server','runP35A','runP35B','runP35Integrated'] }.configureEach {
+    systemProperty 'agnor.motionAsset',file('local-assets/firefly/capabilities.json').absolutePath
+    systemProperty 'agnor.p35.root',file('build/p35-check/coord').absolutePath
+    systemProperty 'agnor.p35.stage',providers.gradleProperty('poseStage').getOrElse('smoke')
+    systemProperty 'agnor.p35.compat',providers.gradleProperty('poseCompat').getOrElse('none')
+    standardInput=new ByteArrayInputStream(new byte[0])
+}
+tasks.named('runP35Integrated') {
+    doFirst { ['server-result.json','A-result.json','state.json','A-final.json','A-retry.json','A-render-ready.json','abort.json'].each { java.nio.file.Files.deleteIfExists(file("build/p35-check/coord/${it}").toPath()) } }
+    doLast {
+        ['server','A'].each { role -> def p=file("build/p35-check/coord/${role}-result.json");if(!p.isFile()||new groovy.json.JsonSlurper().parse(p).status!='PASS')throw new GradleException('Integrated pose acceptance failed') }
+    }
+}
+tasks.named('runP35Server') {
+    doFirst {
+        def config=new Properties();file('build/p35-check/server/server.properties').withInputStream { config.load(it) }
+        if(config.getProperty('server-ip')!='127.0.0.1'||config.getProperty('server-port')!='25584')throw new GradleException('Pose fixture requires loopback port25584')
+        if(providers.gradleProperty('poseStage').getOrElse('smoke')=='multi') {
+            def dialogue=new Properties();file('build/p35-check/server/p35-fixture/agnor/main-dialogue.properties').withInputStream { dialogue.load(it) }
+            if(dialogue.getProperty('enabled')!='true')throw new GradleException('Multi acceptance requires prepare-p35-check.ps1 -Dialogue after compatibility preparation')
+        }
+        ['server-result.json','A-result.json','B-result.json','state.json','A-final.json','A-retry.json','A-render-ready.json','A-model-ready.json','B-render-ready.json','B-disconnected.json','B-reconnected.json','B-recovered.json','abort.json'].each { java.nio.file.Files.deleteIfExists(file("build/p35-check/coord/${it}").toPath()) }
+    }
+    doLast {
+        def result=file('build/p35-check/coord/server-result.json')
+        if(!result.isFile()||new groovy.json.JsonSlurper().parse(result).status!='PASS')throw new GradleException('Pose host acceptance failed; inspect server log/result')
+    }
+}
+['A','B'].each { role -> tasks.named("runP35${role}") {
+    doFirst { ['result.json','motion.png'].each { suffix -> java.nio.file.Files.deleteIfExists(file("build/p35-check/coord/${role}-${suffix}").toPath()) } }
+    doLast {
+        def result=file("build/p35-check/coord/${role}-result.json")
+        if(!result.isFile()||new groovy.json.JsonSlurper().parse(result).status!='PASS'||!file("build/p35-check/coord/${role}-motion.png").isFile())throw new GradleException("Pose client${role} acceptance failed; inspect log")
+    }
+} }

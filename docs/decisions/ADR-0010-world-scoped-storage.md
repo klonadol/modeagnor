@@ -1,6 +1,6 @@
 # ADR-0010: SQLite и граница сохранения мира для первой NPC
 
-- **Статус:** Accepted — решение P1.1; production storage не реализован
+- **Статус:** Accepted — production handle/config реализованы с ограничениями P1.2
 - **Дата:** 2026-11-05
 - **Заменяет:** нет; уточняет предварительный backend в архитектуре/Blueprint
 - **Заменено на:** нет
@@ -49,4 +49,6 @@ JSON не отвергнут как неработающий: на данном 
 
 **НЕ ПРОВЕРЕНО:** Java JDBC driver/native loading и упаковка в Fabric JAR, поддержка других ОС/filesystems, disk-full/ACL, crash во время физического commit, конкурирующие writers, backup/restore, integrated/dedicated NPC restart. Версия JDBC не выбрана и production dependency не добавлена: её закрепление и минимальная проверка входят в реализацию P1.2. Выбор SQLite engine принят; совместимость будущего Java adapter не объявляется доказанной результатом Python.
 
-P1.1 закончена на этом решении. P1.2 и полная P1 остаются незавершёнными.
+P1.1 принято как backend decision. P1.2 реализует minimal Storage Facade/config; [P1.3/ADR-0011](ADR-0011-npc-lifecycle.md) добавляет typed NPC records, schema v2 и migration v1→v2. Исторические ограничения Python-исследования выше относятся к моменту P1.1; Java engine, native loading в dev Fabric, integrated/dedicated lifecycle/restart теперь подтверждены [отчётом 005](../reports/2026-11-05-005-npc-lifecycle.md). Installed release-JAR, OS-level disk-full/ACL и forced power failure остаются непроверенными. Полная P1 требует P1.4.
+
+P1.4 впоследствии завершена: [отчёт 006](../reports/2026-11-05-006-phase1-management.md), P1 принята в границах roadmap. Ограничения release-JAR/OS failure/power failure выше сохраняются.

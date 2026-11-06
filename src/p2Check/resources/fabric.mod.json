@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"agnor_p2_check","version":"1.0.0","environment":"*","entrypoints":{"main":["dev.agnor.check.P2ServerCheck"],"client":["dev.agnor.check.P2ClientCheck"]},"depends":{"agnor":"*"}}

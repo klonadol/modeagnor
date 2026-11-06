@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"agnor_p33_check","version":"1","environment":"*","entrypoints":{"main":["dev.agnor.check.P33Host"],"client":["dev.agnor.check.P33Client"]}}

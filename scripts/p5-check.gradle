@@ -1,0 +1,28 @@
+sourceSets { create('p5Check') {
+    compileClasspath += sourceSets.client.compileClasspath + sourceSets.main.output + sourceSets.client.output
+    runtimeClasspath += sourceSets.client.runtimeClasspath + sourceSets.main.output + sourceSets.client.output
+} }
+loom {
+    mods { agnor_p5_check { sourceSet sourceSets.p5Check } }
+    runs {
+        p5Server { server(); source sourceSets.p5Check; runDir 'build/p5-check/server'; programArg 'nogui' }
+        ['A','B'].each { role -> create("p5${role}") {
+            client(); source sourceSets.p5Check;runDir "build/p5-check/client${role}";vmArg '-Xmx1G';property 'agnor.p5.role',role
+            programArgs '--username',"P5${role}",'--quickPlayMultiplayer','127.0.0.1:25587','--width','1280','--height','720'
+        } }
+        p5Integrated {client();source sourceSets.p5Check;runDir 'build/p5-check/integrated';vmArg '-Xmx2G';property 'agnor.p5.role','A';programArgs '--username','P5A','--quickPlaySingleplayer','p5-world','--width','1280','--height','720'}
+    }
+}
+tasks.withType(JavaExec).matching {it.name in ['runP5Server','runP5A','runP5B','runP5Integrated']}.configureEach {
+    systemProperty 'agnor.p5.root',file('build/p5-check/coord').absolutePath
+    systemProperty 'agnor.p5.stage',providers.gradleProperty('memoryStage').getOrElse('crud')
+    standardInput=new ByteArrayInputStream(new byte[0])
+    doFirst { ext.fixtureStarted=System.currentTimeMillis() }
+    doLast {
+        def role=name=='runP5Server'?'server':name=='runP5B'?'B':'A'
+        [role,'server'].unique().each { label ->
+            def result=file("build/p5-check/coord/${label}-result.json")
+            if(!result.isFile()||result.lastModified()<ext.fixtureStarted||new groovy.json.JsonSlurper().parse(result).status!='PASS')throw new GradleException("P5 ${label} acceptance failed/stale; inspect fixture logs")
+        }
+    }
+}

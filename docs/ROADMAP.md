@@ -67,9 +67,11 @@ graph TD
 
 **Контракты:** WorldId/NpcId/PlayerUUID, versioned CharacterDefinition/RuntimeSnapshot, operation ID, permission context, scoped transaction; память пока только ownership IDs. World storage определяется из server save, а не общего gameDir; точный layout закрепить в P1.1.
 **Результат/выход:** одна NPC с явно временным placeholder появляется, сохраняется и удаляется без дубликатов; два игрока имеют раздельные отношения, чужой мир/неавторизованный запрос не изменяет состояние. Проверить integrated и dedicated restart; отсутствие модели не блокирует server activation.
-**Статус 2026-11-05:** P1.1 завершена как ограниченное исследование: [ADR-0010](decisions/ADR-0010-world-scoped-storage.md), [сборка и SQLite/JSON fixture](reports/2026-11-05-002-storage-contract.md). Выбран SQLite на server save; production storage и Java adapter ещё отсутствуют. Первая незавершённая задача — **P1.2**, в этой работе не реализуется.
+**Статус 2026-11-05: P1 Verified в перечисленных границах.** P1.1–P1.4 реализованы; [отчёт 006](reports/2026-11-05-006-phase1-management.md), [ADR-0012](decisions/ADR-0012-npc-management-protocol.md). Проверены команды/owner/admin checks/адресные bounded snapshots, два игрока и два save roots, dedicated/integrated restart, отдельные relationships, tombstone/idempotency. 22 unit tests и сборка PASS. Предыдущие storage/lifecycle evidence — [отчёт 005](reports/2026-11-05-005-npc-lifecycle.md). Физический disk-full/ACL, online authentication и installed release-JAR/полная compatibility matrix не объявляются проверенными. P2 впоследствии принята (отчёт 011); следующая незавершённая фаза — P3.
 
 **Отложено:** шесть memory stores, AI queues/outbox, полноценный редактор, renderer. **Риски:** unload vs delete, двойная запись entity и storage, исключение client classes. `DataRoots.serverData` исключён из приватного storage контрактом ADR-0010; применение server-save пути обязательно до первой приватной записи.
+
+Историческое начало P1.3 и исправление connection settings — [отчёт 004](reports/2026-11-05-004-storage-followup-definition-registry.md); последующее завершение — отчёт 005.
 
 ## P2. Реальный LLM-диалог с сохраняемой историей
 
@@ -86,7 +88,13 @@ graph TD
 **Результат/выход:** два игрока независимо говорят с NPC, история восстанавливается; запрос/ответ не дублируется при retry; отказ API не стопорит tick и не раскрывает чужой диалог. Для каждого режима нужен реальный проверенный endpoint; отсутствие credentials отмечается как конкретная незавершённая P2.4, а не имитация PASS.
 **Отложено:** gaze/жесты до P3, gnome presets до P6, Bot до P7, TTS до P8. Семантический speaking state можно показать текстом. **Риски:** неполный streaming, цена/контекст, crash между commit и отправкой UI, retention до активации consumers. Единица счёта: accepted inbound = 1, final assistant = 1; partial/system/retry = 0.
 
+**Статус 2026-11-05: P2 Verified в перечисленных границах.** P2.1–P2.4 реализованы последовательно; [итог 011](reports/2026-11-05-011-phase2-complete.md), срезы [008](reports/2026-11-05-008-provider-gateway-verified.md)/[009](reports/2026-11-05-009-history-context.md)/[010](reports/2026-11-05-010-dialogue-path.md), ADR-0013–0016. Реальные local Ollama и cloud OpenRouter, private gameplay UI, два игрока/restart/retry, canonical History+events, timeout без блокировки тика, cancel/disconnect/stale подтверждены. 38 unit tests/build PASS; streaming не заявлен. Ошибки dev orchestration и ограничения сохранены в отчёте. Остановлено перед P3.1; P3 не начиналась.
+
 ## P3. Выразительная 3D-NPC и управляемое тело
+
+**P3 Verified,2026-11-06:** P3.1–P3.5 последовательно завершены в документированных границах. [Итоговая приёмка и бюджеты](reports/2026-11-06-004-phase3-acceptance.md), [pose sync/dialogue/compat](reports/2026-11-06-003-pose-sync-dialogue.md), [визуальные ограничения](assets/FIREFLY_VISUAL_LIMITS.md). Dedicated2clients и integrated, реальный dialogue/retry, reconnect/mismatch/stale, selected Sodium/Iris/Complementary PASS;83tests PASS/3opt-in skipped. Локальный dev rig adapter до P4; full cloth/MToon/voice/navigation не заявлены. P4 впоследствии завершена; актуальная приёмка — в разделе P4.
+
+[Поиск Miyabi](assets/MIYABI_MODEL_SEARCH.md) выполнен; новая модель не активирована. Пользовательская коллекция: `C:/Users/User/Documents/Codex/AGNOR/assets/models/разное`. История P3.1 comparison/adapter — отчёты012/013, P3.2 —014, P3.3 —2026-11-06-001, P3.4 —002, P3.5 —003/004.
 
 **Цель:** заменить placeholder полноценным anime mesh и связать тело/лицо с уже работающим диалогом. **Предусловия:** P1; P2 нужен для конечной диалоговой приёмки, не для P3.1. **Подсистемы:** importer/renderer adapter, rig, Motion Engine, Face Controller, host physics, Pose Publisher.
 
@@ -113,6 +121,8 @@ graph TD
 | P4.1 Manifest и безопасный loader | P3.2 | А: schema/version/hash, path traversal/limits/signatures, provenance/rights, dependencies/cycles/override priority |
 | P4.2 Активация через существующий Registry | P4.1 | А: stage/enable/disable/reload/rollback, capability report, внешний definition с тем же NPC identity; fallback недостающих channels |
 | P4.3 UI и разрешённая синхронизация | P4.2 | А: local user dirs, выбор/настройки, version mismatch/reconnect; policy отказа/получения разрешённых ассетов с лимитами; запрещённые ассеты не передаются |
+
+**Статус 2026-11-06: P4 Verified в перечисленных границах.** P4.1–P4.3 выполнены и проверены последовательно: [005 loader](reports/2026-11-06-005-pack-ingestion.md), [006 activation](reports/2026-11-06-006-pack-activation.md), [007 UI/sync](reports/2026-11-06-007-pack-controls-sync.md), [008 итог](reports/2026-11-06-008-phase4-acceptance.md), ADR0022–0024. Внешний pack меняет модель/персональность той же NPC без JAR rebuild; corrupt reload не заменяет last-known-good, dedicated restart и integrated PASS. Два клиента: exact-digest mismatch/reconnect/local recovery, A consented public63040bytes/B0, Firefly0. Clickable command/chat UI, bounded≤16MiB transfer/explicit pinned admin opt-in.102tests PASS/3opt-in skipped/build PASS. Ограничения GLB/PNG adapter и private cache maintenance описаны в008; универсальный importer/full editor/релизная матрица не заявлены. P5 не начиналась.
 
 **Контракты:** ContentPackSchema отдельно от executable Addon API; DefinitionSource, asset hash/rig revision, capability states. Prompt/voice/behavior данные пассивны до consumer; уже готовый Dialogue может использовать prompt сразу.
 **Результат/выход:** внешний пакет меняет отображение и настройки персонажа без JAR rebuild; повреждённый пакет не уничтожает прошлую версию; multiplayer policy воспроизводима. **Отложено:** executable addons P10, voice consumer P8. **Риски:** unsafe files, ресурсные утечки reload, несовместимый rig, права на передачу. Временные restricted ассеты только локально и в реестре; никогда в публичных артефактах.

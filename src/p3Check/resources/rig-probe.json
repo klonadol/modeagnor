@@ -1,0 +1,12 @@
+{
+  "revision": "agnor-p3-fixture-v1",
+  "nodes": [
+    {"name":"root", "parent":-1, "translation":[0,0,0]},
+    {"name":"tip", "parent":0, "translation":[0,1,0]},
+    {"name":"mesh", "parent":-1, "translation":[0,0,0]}
+  ],
+  "joints": [
+    {"node":0,"inverseBindTranslation":[0,0,0]},
+    {"node":1,"inverseBindTranslation":[0,-1,0]}
+  ]
+}

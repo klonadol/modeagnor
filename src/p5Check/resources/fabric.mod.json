@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"agnor_p5_check","version":"1.0.0","environment":"*","entrypoints":{"main":["dev.agnor.check.P5Host"],"client":["dev.agnor.check.P5Client"]},"depends":{"agnor":"*"}}

@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"agnor_p4_check","version":"1.0.0","name":"AGNOR local P4 fixture","environment":"*","entrypoints":{"main":["dev.agnor.check.P4Host"],"client":["dev.agnor.check.P4Client"]},"depends":{"agnor":"*"}}

@@ -1,0 +1,47 @@
+sourceSets { create('p33Check') {
+    compileClasspath += sourceSets.client.compileClasspath + sourceSets.main.output + sourceSets.client.output
+    runtimeClasspath += sourceSets.client.runtimeClasspath + sourceSets.main.output + sourceSets.client.output
+} }
+loom {
+    mods { agnor_p33_check { sourceSet sourceSets.p33Check } }
+    runs {
+        p33Server { server(); source sourceSets.p33Check; runDir 'build/p33-check/server'; programArg 'nogui' }
+        p33Client { client(); source sourceSets.p33Check; runDir 'build/p33-check/client'; programArgs '--width','1280','--height','720' }
+    }
+}
+def verifyFrames = { task ->
+    def stage = task.systemProperties['agnor.p33.stage']
+    def asset = new groovy.json.JsonSlurper().parse(file(task.systemProperties['agnor.p33.asset']))
+    def output = file("build/p33-check/pose-frames-${stage}.json")
+    if (!output.isFile()) throw new GradleException('Host did not produce a fresh pose fixture; inspect server log')
+    def data = new groovy.json.JsonSlurper().parse(output)
+    if (data.stage != stage || data.rigRevision != asset.sha256 || data.frames[0].size() != asset.parts.size()) {
+        throw new GradleException('Pose fixture stage/rig/partition mismatch; refusing stale results')
+    }
+}
+tasks.named('runP33Server') {
+    doFirst {
+        java.nio.file.Files.deleteIfExists(file("build/p33-check/pose-frames-${systemProperties['agnor.p33.stage']}.json").toPath())
+    }
+    doLast { verifyFrames(it) }
+}
+tasks.named('runP33Client') {
+    doFirst {
+        verifyFrames(it)
+        java.nio.file.Files.deleteIfExists(file("build/p33-check/pose-proof-${systemProperties['agnor.p33.stage']}.png").toPath())
+    }
+    doLast {
+        if (!file("build/p33-check/pose-proof-${systemProperties['agnor.p33.stage']}.png").isFile()) {
+            throw new GradleException('Client did not produce a fresh screenshot; inspect client log')
+        }
+    }
+}
+tasks.withType(JavaExec).matching { it.name in ['runP33Server','runP33Client'] }.configureEach {
+    systemProperty 'agnor.p33.root', file('build/p33-check').absolutePath
+    def stage = providers.gradleProperty('motionStage').getOrElse('a')
+    def firefly = stage == 'd' || providers.gradleProperty('motionCharacter').getOrElse('furina') == 'firefly'
+    systemProperty 'agnor.p33.asset', file(firefly ? 'local-assets/firefly/capabilities.json' : 'local-assets/furina/capabilities.json').absolutePath
+    systemProperty 'agnor.p33.stage', providers.gradleProperty('motionStage').getOrElse('a')
+    systemProperty 'agnor.p33.view', providers.gradleProperty('motionView').getOrElse('0')
+    standardInput=new ByteArrayInputStream(new byte[0])
+}

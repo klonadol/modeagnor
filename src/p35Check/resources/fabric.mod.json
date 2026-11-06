@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"agnor_p35_check","version":"1","environment":"*","depends":{"agnor":"*"},"entrypoints":{"main":["dev.agnor.check.P35Host"],"client":["dev.agnor.check.P35Client"]}}

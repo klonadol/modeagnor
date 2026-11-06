@@ -1,5 +1,7 @@
 # ADR-0003: Внешние Content Packs вне JAR
 
+Уточнение 2026-11-06: путь/manifest/activation/sync реализованы и проверены в P4 — [ADR-0022](ADR-0022-content-pack-schema-and-ingestion.md), [0023](ADR-0023-content-generations-and-presentation.md), [0024](ADR-0024-content-controls-and-opt-in-transfer.md), [итог008](../reports/2026-11-06-008-phase4-acceptance.md). Нижний список открытых проверок — исходный исторический срез; физический ACL-denial остаётся отдельным непроверенным случаем.
+
 > Фазовые предписания пересмотрены 2026-11-05 в [ADR-0009](ADR-0009-dependency-driven-plan.md); функциональное решение сохраняется.
 
 - **Статус:** Accepted; детали пути и синхронизации требуют валидации

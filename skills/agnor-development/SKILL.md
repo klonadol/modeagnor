@@ -31,10 +31,10 @@ AGNOR — companion-мод Minecraft с автономными 3D-персона
 - [Fabric setup](https://wiki.fabricmc.net/tutorial:setup)
 - [Fabric entrypoints](https://wiki.fabricmc.net/documentation:entrypoint)
 - [Fabric networking](https://wiki.fabricmc.net/tutorial:networking)
-- [Fabric API 0.102.1+1.21.1 Javadocs](https://maven.fabricmc.net/docs/fabric-api-0.102.1+1.21.1/)
+- [Fabric API 0.116.15+1.21.1 Javadocs](https://maven.fabricmc.net/docs/fabric-api-0.116.15+1.21.1/)
 - [Fabric Loader 0.16.10 Javadocs](https://maven.fabricmc.net/docs/fabric-loader-0.16.10/)
 - [Fabric Loom](https://docs.fabricmc.net/develop/loom/)
-- [Gradle Wrapper 8.8](https://docs.gradle.org/8.8/userguide/gradle_wrapper.html)
+- [Gradle Wrapper 9.7.1](https://docs.gradle.org/9.7.1/userguide/gradle_wrapper.html)
 - [Java 21 API](https://docs.oracle.com/en/java/javase/21/docs/api/)
 - [Yarn 1.21.1+build.3](https://maven.fabricmc.net/docs/yarn-1.21.1+build.3/)
 

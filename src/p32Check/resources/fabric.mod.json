@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"agnor_p32_check","version":"1","environment":"*","entrypoints":{"main":["dev.agnor.check.P32Server"],"client":["dev.agnor.check.P32Client"]}}

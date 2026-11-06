@@ -1,7 +1,16 @@
-plugins { id 'fabric-loom' version '1.7.4' }
+plugins { id 'net.fabricmc.fabric-loom-remap' version '1.16.3' }
 
 version = project.mod_version
 group = project.maven_group
+
+def rendererJar = file('build/p3-research/gemrender.jar')
+if (!rendererJar.isFile() || !file('build/p3-research/flywheel.jar').isFile()) {
+    throw new GradleException('Run powershell -ExecutionPolicy Bypass -File scripts/prepare-renderer.ps1 before building')
+}
+if (java.security.MessageDigest.getInstance('SHA-256').digest(rendererJar.bytes).encodeHex().toString() !=
+    '5909d533036864a1a7bc3eb3cb65cf738899d855d21b97834702e9cd8efabe4f') {
+    throw new GradleException('Renderer binary differs from audited GemRender 0.1.20')
+}
 
 repositories { mavenCentral() }
 dependencies {
@@ -9,12 +18,34 @@ dependencies {
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    modImplementation include('org.xerial:sqlite-jdbc:3.51.0.0')
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.3'
+    testImplementation 'com.google.code.gson:gson:2.10.1'
+    testImplementation 'org.joml:joml:1.10.5'
+    testRuntimeOnly 'org.xerial:sqlite-jdbc:3.51.0.0'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 loom {
     splitEnvironmentSourceSets()
     mods { agnor { sourceSet sourceSets.main; sourceSet sourceSets.client } }
+}
+dependencies {
+    modClientCompileOnly files('build/p3-research/gemrender.jar', 'build/p3-research/flywheel.jar')
+    if ((providers.gradleProperty('packCheck').isPresent() || providers.gradleProperty('npcRenderCheck').isPresent() || providers.gradleProperty('motionCheck').isPresent() || providers.gradleProperty('poseCheck').isPresent()) && !providers.gradleProperty('npcFallback').isPresent()) {
+        modClientRuntimeOnly files('build/p3-research/gemrender.jar', 'build/p3-research/flywheel.jar')
+    }
+    if (providers.gradleProperty('poseCheck').isPresent() && providers.gradleProperty('poseCompat').isPresent()) {
+        modClientRuntimeOnly files('build/p35-check/compat/sodium.jar')
+        if (providers.gradleProperty('poseCompat').get() in ['iris','shader']) {
+            // Iris must be on Loom's remap/compile hierarchy too: GemRender invokes inherited
+            // ShaderProgram methods through ExtendedShader. Runtime-only can cache unmapped owners.
+            modClientImplementation files('build/p35-check/compat/iris.jar')
+            // Loom dev runs need the libraries nested in the verified published Iris JAR explicitly.
+            clientRuntimeOnly files('build/p35-check/compat/iris-libs/antlr4-runtime-4.13.1.jar',
+                'build/p35-check/compat/iris-libs/glsl-transformer-2.0.1.jar',
+                'build/p35-check/compat/iris-libs/jcpp-1.4.14.jar')
+        }
+    }
 }
 processResources {
     inputs.property 'version', project.version
@@ -23,8 +54,56 @@ processResources {
 tasks.withType(JavaCompile).configureEach { options.release = 21 }
 java { sourceCompatibility = JavaVersion.VERSION_21; targetCompatibility = JavaVersion.VERSION_21; withSourcesJar() }
 test { useJUnitPlatform() }
+tasks.register('providerLive', Test) {
+    description = 'Explicit real Ollama Main Dialogue gateway check (not part of build).'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform()
+    filter { includeTestsMatching 'dev.agnor.provider.ProviderLiveCheck' }
+    systemProperty 'agnor.providerLive', 'true'
+    outputs.upToDateWhen { false }
+}
+tasks.register('historyLive', Test) {
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform()
+    filter { includeTestsMatching 'dev.agnor.dialogue.HistoryContextLiveCheck' }
+    systemProperty 'agnor.historyLive', 'true'
+    outputs.upToDateWhen { false }
+}
+tasks.register('cloudLive', Test) {
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform()
+    filter { includeTestsMatching 'dev.agnor.provider.CloudLiveCheck' }
+    systemProperty 'agnor.cloudLive', 'true'
+    outputs.upToDateWhen { false }
+}
 
 // Opt-in Phase 0 network harness, never included in the mod JAR.
 if (providers.gradleProperty('phase0').isPresent()) {
     apply from: 'scripts/phase0.gradle'
 }
+if (providers.gradleProperty('lifecycleCheck').isPresent()) {
+    apply from: 'scripts/lifecycle-check.gradle'
+}
+if (providers.gradleProperty('p1Check').isPresent()) {
+    apply from: 'scripts/p1-check.gradle'
+}
+if (providers.gradleProperty('p2Check').isPresent()) {
+    apply from: 'scripts/p2-check.gradle'
+}
+if (providers.gradleProperty('p3Check').isPresent()) {
+    apply from: 'scripts/p3-check.gradle'
+}
+if (providers.gradleProperty('npcRenderCheck').isPresent()) {
+    apply from: 'scripts/p32-check.gradle'
+}
+if (providers.gradleProperty('motionCheck').isPresent()) {
+    apply from: 'scripts/p33-check.gradle'
+}
+if (providers.gradleProperty('poseCheck').isPresent()) {
+    apply from: 'scripts/p35-check.gradle'
+}
+if (providers.gradleProperty('packCheck').isPresent()) { apply from: 'scripts/p4-check.gradle' }
+if (providers.gradleProperty('memoryCheck').isPresent()) { apply from: 'scripts/p5-check.gradle' }

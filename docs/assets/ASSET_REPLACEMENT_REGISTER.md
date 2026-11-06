@@ -1,3 +1,5 @@
+P4 2026-11-06: принятый Firefly используется также как LOCAL_ONLY external Content Pack (inventory `b76c217bda35a3394b267777b241bdbb9cc0e110dc913c859fa86e06277a91ce`). Производные copies/manifest/rig находятся только в ignored `build/p4-check/*/mods/agnor/packs/firefly` и synthetic private `<save>/agnor/content/objects`. Source geometry/textures не менялись. Server transfer payload Firefly=0 в двухклиентской и integrated приёмке; в normal JAR/Git assets отсутствуют. Original public CC0 triangle/notes — отдельный synthetic transfer fixture, не замена/публикация restricted модели. См. [отчёт007](../reports/2026-11-06-007-pack-controls-sync.md).
+
 # Asset Replacement Register
 
 Этот реестр содержит временные модели и другие 3D-ассеты с неподтверждёнными правами, которые используются в локальной разработке и должны быть заменены или удалены перед финальным релизом полной версии Агнора после переноса авторского мира в Minecraft (P10).
@@ -13,7 +15,11 @@
 
 ## Записи
 
-Пока временные ассеты не зарегистрированы.
+P3.3(d), 2026-11-06: локальный `190034762488033771.vrm` из `assets/models/разное`, metadata title **Firefly**, author **maisan_twosaka**, contact **LedesmaBenjamin - Fiverr**. Источник — коллекция пользователя; исходная страница загрузки не предоставлена. Встроенная metadata содержит разные commercial usage поля и ссылку Vroid permissions; права не объявляются проверенными. **TEMPORARY_RESTRICTED**, только локальная проверка facial morphs/eyes, никакого Git/JAR/sync. Исходник сохраняется; производные — ignored `local-assets/firefly`/`build/p33-check`. Заменить или подтвердить права до распространения.
+
+Firefly source SHA-256: `37c32b19702bd2d8b83e9837ecd98f1f167df0123b48bffa0679fe56cf5e21a2`. Производные18GLB сохраняют morphs; Blender QA checkpoint — `local-assets/firefly/firefly-face-qa.blend`. Body и face proof одной модели — отчёт2026-11-06-001.
+
+Локальный P3.2: пользовательский `genshin_impact_-_furina.glb`, путь `C:/Users/User/Documents/Codex/AGNOR/assets/models/разное/genshin_impact_-_furina.glb`, SHA-256 `8065c134cc6d6e8e03a0a073a3953f388e8ae6857b7a5d967e4aa7226a8a1f45`. Источник — коллекция пользователя (2026-11-05), исходная страница/автор/лицензия не предоставлены; статус **TEMPORARY_RESTRICTED**. Используется для локальной проверки P3.2. Производные семь GLB находятся только в ignored `local-assets/furina` и локальном resource pack тестового клиента. Замена на модель с подтверждёнными правами до распространения; не включать исходник или производные в Git/JAR/sync. Разбиение сохраняет все используемые костные веса; будущая анимация должна использовать исходную hierarchy через mapping из capability JSON.
 
 | ID | Ассет / персонаж | Локальный путь или file ID (не сам файл) | Источник / исходная страница | Прямая ссылка на скачивание | Автор | Дата получения | SHA-256 | Статус прав / известные условия | Причина временного использования | План замены / целевой ассет | Ответственный | Статус |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|

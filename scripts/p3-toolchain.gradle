@@ -1,0 +1,22 @@
+// Standalone build file staged into build/p3-toolchain by prepare-p3-toolchain.ps1.
+plugins { id 'net.fabricmc.fabric-loom-remap' version '1.16.3' }
+repositories { mavenCentral() }
+dependencies {
+    minecraft 'com.mojang:minecraft:1.21.1'
+    mappings 'net.fabricmc:yarn:1.21.1+build.3:v2'
+    modImplementation 'net.fabricmc:fabric-loader:0.16.10'
+    modImplementation 'net.fabricmc.fabric-api:fabric-api:0.116.15+1.21.1'
+    if (!providers.gradleProperty('hostOnly').isPresent()) {
+        modImplementation files('../p3-research/gemrender.jar')
+        modImplementation files('../p3-research/flywheel.jar')
+    }
+}
+loom { runs {
+    client { client(); runDir 'run' }
+    server { server(); runDir 'server'; programArg 'nogui'; property 'agnor.p3.hostOutput', file('host-palette.json').absolutePath }
+} }
+if (providers.gradleProperty('hostOnly').isPresent()) {
+    sourceSets.main.java { setSrcDirs(['host/java']) }
+    sourceSets.main.resources { setSrcDirs(['host/resources']) }
+}
+java { toolchain.languageVersion = JavaLanguageVersion.of(21) }

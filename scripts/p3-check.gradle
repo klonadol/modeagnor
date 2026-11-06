@@ -1,0 +1,22 @@
+// Isolated P3.1 API experiment. Never included in the AGNOR release artifact.
+def candidate = file('build/p3-research/gemrender.jar')
+if (!candidate.isFile()) throw new GradleException('Run scripts/prepare-p3-check.ps1 first')
+def actual = java.security.MessageDigest.getInstance('SHA-256').digest(candidate.bytes).encodeHex().toString()
+if (actual != '5909d533036864a1a7bc3eb3cb65cf738899d855d21b97834702e9cd8efabe4f') {
+    throw new GradleException('Unexpected GemRender binary; re-audit before changing the pin')
+}
+sourceSets { create('p3Check') }
+dependencies {
+    p3CheckImplementation files(candidate)
+    p3CheckImplementation 'org.joml:joml:1.10.5'
+    p3CheckImplementation 'com.google.code.gson:gson:2.10.1'
+}
+tasks.register('p3Headless', JavaExec) {
+    classpath = sourceSets.p3Check.runtimeClasspath
+    mainClass = 'dev.agnor.p3.RendererApiCheck'
+    args file('src/p3Check/resources/rig-morph.gltf').absolutePath
+}
+// Explicit second experiment: does the published binary fit our unchanged Loom/Fabric matrix?
+if (providers.gradleProperty('p3Client').isPresent()) {
+    dependencies { modClientImplementation files(candidate) }
+}

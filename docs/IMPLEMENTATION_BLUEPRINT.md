@@ -223,6 +223,8 @@ graph TD
 
 ### 3.2 Создание NPC
 
+Фактический P1-срез завершён: `NpcManagement` соединяет команды/C2S с trusted sender, scope/permission validation, `NpcRuntime`/`NpcRepository` и private reply. [ADR-0012](decisions/ADR-0012-npc-management-protocol.md) фиксирует минимальный протокол, policy и selection. Definition/placeholder/storage реализованы по ADR-0011; будущие editor/provider/packs/permissions ниже остаются проектными до своих фаз.
+
 Запрос UI/API → server identity и permission validation → world/limit/definition validation → Registry проверяет уникальность UUID → Runtime Factory создаёт независимые state containers, relationship namespace и стабильные memory/task ownership scope keys → persistence сохраняет начальное состояние атомарно → сервер публикует разрешённый spawn snapshot → клиенты загружают локальный asset либо placeholder → NPC становится Active после готовности обязательных серверных компонентов.
 
 Memory/task scope keys в P1 — только стабильные идентификаторы владения, не созданные memory stores, Gnome Task Scheduler queues или запущенные workers. Repositories создаются с их writers согласно §0.8; background consumers — в P6 / P7. NPC lifecycle hooks могут публиковать типизированные domain events, но AI/event-memory consumers подключаются поэтапно.
@@ -293,7 +295,7 @@ User messages, lorebook entries, external descriptions и retrieved memories с�
 
 ### 7.1 Общий контракт
 
-Storage API обеспечивает typed operations, scope enforcement, schema validation, transactions, pagination, retention и migrations. Бизнес-сервисы не строят SQL/JSON напрямую. Durable записи имеют ID, scope, timestamps, provenance, schema version и status. Для первой NPC выбран SQLite на server save по [ADR-0010](decisions/ADR-0010-world-scoped-storage.md): ограниченный fixture P1.1 пройден, production API/Java adapter ещё не реализованы. JSON для конфигураций/определений и vector index остаются отдельными направлениями, будущие stores/retention/pagination не создаются без потребителя.
+Storage API обеспечивает typed operations, scope enforcement, schema validation, transactions, pagination, retention и migrations. Бизнес-сервисы не строят SQL/JSON напрямую. Durable записи имеют ID, scope, timestamps, provenance, schema version и status. Для первой NPC выбран SQLite на server save по [ADR-0010](decisions/ADR-0010-world-scoped-storage.md). P1.2 реализует Java transaction handle/config/same-version/world backup restore; P1.3 — typed `NpcRepository`, snapshots/relationships, schema v2 с transactional migration и operation dedupe/tombstone ([ADR-0011](decisions/ADR-0011-npc-lifecycle.md)). Остальные record metadata, pagination/retention и vector index остаются проектными до их потребителей; world Properties уже реализованы, JSON для переносимых определений остаётся направлением.
 
 ### 7.2 Conversation History
 

@@ -1,4 +1,24 @@
+# Реализованный срез P4 (2026-11-06)
+
+[ADR-0022](decisions/ADR-0022-content-pack-schema-and-ingestion.md), [0023](decisions/ADR-0023-content-generations-and-presentation.md), [0024](decisions/ADR-0024-content-controls-and-opt-in-transfer.md): external directory/ZIP → bounded validated immutable pack → resolved/capability generation → private last-known-good atomic snapshot → single Registry publication. IO workers выполняют чтение/hash/cache, server thread публикует generation и сохраняет прежнюю NPC identity; redefine меняет только definition/revision, не memory scope. Pack prompt включён в единственный ContextBuilder, content change отменяет текущий dialogue.
+
+Host motion выбирает CPU rig per NPC; public tracked binding — digest/definition/revision. Client монтирует только verified contained resources, сбрасывает pose caches при change/reconnect, отображает placeholder при exact-digest mismatch. Начальная загрузка до первого resource reload; дальнейшие reload восстанавливают предыдущую карту при ошибке. Client-only provider mixin и GemRender остаются изолированы от dedicated classloading.
+
+PackWire v1 передаёт только public catalog автоматически. Assets требуют ALLOWED rights + admin opt-in точного digest + явного client fetch,≤16MiB/chunks28KiB/4sessions/one per connection. LOCAL_ONLY/UNKNOWN не передаются. Cache полученных пакетов отделён от пользовательских local dirs и private world storage. Полные правила/лимиты — [CONTENT_PACKS](CONTENT_PACKS.md); итоговая evidence — [отчёт008](reports/2026-11-06-008-phase4-acceptance.md). P4 Verified; P5 ещё не начата. Ниже сохраняются целевая архитектура и исторические срезы внедрения.
+
+---
+
 # Архитектура AGNOR
+
+P3.5 runtime adapter реализован и проверен — [ADR-0021](decisions/ADR-0021-pose-keyframes-and-dialogue-presentation.md), [отчёт003](reports/2026-11-06-003-pose-sync-dialogue.md). `MotionService` — server/session producer для прежних NPC UUID: gait → bounded dialogue head/gaze/gesture → face → secondary. Storage ownership прежний; idle без tracking viewers засыпает. S2C independent sparse keyframes10Hz,16KiB max, paired double root + rig revision/sequence; client только interpolation/FK/palette/GPU. Unknown rig/stale → neutral, reconnect → cache reset; без ресурсов/backend — fallback той же entity. Dialogue adapter публикует только allowlisted public cues, не приватный текст. `MotionRig` — явный local dev adapter до P4, не discovery/content loader. Selected Sodium/Iris/active shader matrix проверена, full MToon/cloth/voice/navigation не заявлены. P3 Verified; итоговый budget gate PASS — [отчёт004](reports/2026-11-06-004-phase3-acceptance.md).
+
+Ниже — этапы введения компонентов; формулировки «следующая P3.5» относятся к историческим срезам.
+
+P3.4 controlled kernel принят — [ADR-0020](decisions/ADR-0020-scripted-gait-and-secondary-constraints.md), [отчёт002](reports/2026-11-06-002-locomotion-secondary.md): scripted-root gait, planted position/yaw, общая pelvis correction и bounded fixed-step secondary tips с sphere/cone constraints. Common CPU only, stable local origin, per-chain reset.10-chain Firefly profile проверен; full cloth/mesh collision не заявлены. Игровой producer/sync/dialogue integration — следующая P3.5.
+
+Фактический P3.3 CPU kernel — [ADR-0019](decisions/ADR-0019-host-pose-and-face-pipeline.md): `motion/` владеет immutable rig/TRS, clips/blends, FK/IK/limits, task arbitration и face lanes. Host считает original hierarchy и per-part palettes; клиент только skinning/morph presentation. Controlled fixtures проверены, runtime integration с игровыми NPC/network/dialogue ещё P3.5 после gait/physics P3.4.
+
+Фактический P3.2 adapter: [ADR-0018](decisions/ADR-0018-npc-presentation-adapter.md). Server регистрирует `agnor:npc`, Storage/NpcRuntime остаются единственным владельцем UUID/состояния. Optional GemRender подключается только клиентом; при отсутствии renderer/resources используется fallback того же entity. Семь локальных mesh parts — одна gameplay NPC; исходная rig hierarchy сохраняется в adaptation metadata. Host pose/sync/motion pipeline остаётся последующей P3.3–P3.5.
 
 Документ описывает целевые границы, не готовые модули. Фактическая реализация — [PROJECT_MAP](PROJECT_MAP.md); порядок и gates — только [ROADMAP](ROADMAP.md). Уточнения staged activation/outbox/server pose — Blueprint §0.8 и ADR-0009.
 
@@ -416,13 +436,15 @@ Content Pack может содержать манифест, определен�
 
 ## 10. Персистентность и изоляция
 
-Для первой NPC выбран SQLite: `<server-save>/agnor/state.db`, путь от `MinecraftServer.getSavePath(WorldSavePath.ROOT)`. [ADR-0010](decisions/ADR-0010-world-scoped-storage.md) задаёт WorldId, scope, transaction/lifecycle/errors и исключает общий `DataRoots.serverData`. Ограниченный SQLite/JSON fixture пройден; production Storage Facade и Java adapter ещё не реализованы. JSON для конфигураций/переносимых определений остаётся направлением. Индексы будущих подсистем, объём и конкурентная запись этим исследованием не проверены.
+Для первой NPC выбран SQLite: `<server-save>/agnor/state.db`, путь от `MinecraftServer.getSavePath(WorldSavePath.ROOT)`. [ADR-0010](decisions/ADR-0010-world-scoped-storage.md) задаёт WorldId, scope и исключает общий `DataRoots.serverData`. P1.2 реализует Java handle/config/transaction/backup restore; P1.3 — schema v2, migration v1→v2 с backup, typed NPC snapshots, отдельные relationships, operation IDs/tombstone и session runtime. [ADR-0011](decisions/ADR-0011-npc-lifecycle.md) закрепляет SQLite как durable writer и временный placeholder без NBT persistence. Индексы будущих подсистем, нагрузка и concurrent writers не проверены.
 
 Минимальный логический ключ данных: `world_id + npc_id + player_id (nullable) + record_id`. Для событий и сообщений — устойчивые UUID и timestamps. Для обновлений схемы — versioned migrations и резервное копирование перед миграцией.
 
 Content Packs общие для установки, но данные мира должны находиться в сохранении конкретного мира/сервере. Одиночный мир использует интегрированный сервер; выделенный сервер хранит собственную копию данных и ресурсов.
 
 ## 11. Безопасность и права
+
+Реализованный срез P1.4 — [ADR-0012](decisions/ADR-0012-npc-management-protocol.md): trusted connection actor, owner/admin delete, nearby select и только собственный relationship, общий command/C2S обработчик и адресный bounded S2C snapshot. Это не реализация будущего общего Permission Service для provider/memory/packs/actions; перечисленные ниже общие требования применяются при появлении их consumers.
 
 - API-ключи хранятся только на хосте и не отправляются клиентам.
 - В сетевых запросах всегда проверяется UUID отправителя и permission level.

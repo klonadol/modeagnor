@@ -1,0 +1,36 @@
+sourceSets {
+    p2Check {
+        compileClasspath += sourceSets.client.compileClasspath + sourceSets.main.output + sourceSets.client.output
+        runtimeClasspath += sourceSets.client.runtimeClasspath + sourceSets.main.output + sourceSets.client.output
+    }
+}
+loom {
+    mods { agnor_p2_check { sourceSet sourceSets.p2Check } }
+    runs {
+        p2Server { server(); source sourceSets.p2Check; runDir 'build/p2-check/server'; programArg 'nogui' }
+        ['A','B'].each { label ->
+            create("p2${label}") {
+                client(); source sourceSets.p2Check; runDir "build/p2-check/client${label}"; vmArg '-Xmx1G'
+                property 'agnor.p2.role', label
+                programArgs '--username', "P2${label}", '--quickPlayMultiplayer', '127.0.0.1:25579'
+            }
+        }
+        p2Integrated {
+            client(); source sourceSets.p2Check; runDir 'build/p2-check/integrated'; vmArg '-Xmx1G'
+            property 'agnor.p2.role', 'A'; property 'agnor.p2.integrated', 'true'
+            programArgs '--username', 'P2Integrated', '--quickPlaySingleplayer', 'p2-world'
+        }
+    }
+}
+tasks.withType(JavaExec).matching { it.name in ['runP2Server','runP2A','runP2B','runP2Integrated'] }.configureEach {
+    standardInput = new ByteArrayInputStream(new byte[0])
+    systemProperty 'agnor.p2.root', file('build/p2-check/coord').absolutePath
+    systemProperty 'agnor.p2.world', providers.gradleProperty('p2World').getOrElse('D')
+    systemProperty 'agnor.p2.stage', providers.gradleProperty('p2Stage').getOrElse('1')
+}
+tasks.named('runP2Server') {
+    doFirst {
+        def config=new Properties();file('build/p2-check/server/server.properties').withInputStream { config.load(it) }
+        if(config.getProperty('server-ip')!='127.0.0.1'||config.getProperty('server-port')!='25579')throw new GradleException('P2 fixture must use loopback port 25579')
+    }
+}

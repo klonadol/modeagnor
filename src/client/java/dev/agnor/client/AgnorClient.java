@@ -10,6 +10,17 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
 public final class AgnorClient implements ClientModInitializer {
     @Override public void onInitializeClient() {
+        ContentClient.install();
+        PackClient.install();
+        NpcMotionClient.install();
+        NpcPresentation.install();
+        ClientPlayNetworking.registerGlobalReceiver(dev.agnor.network.DialogueProtocol.Response.ID,(payload,context)->DialogueClient.receive(context.client(),payload.value()));
+        ClientPlayConnectionEvents.DISCONNECT.register((handler,client)->DialogueClient.clear());
+        ClientPlayNetworking.registerGlobalReceiver(dev.agnor.network.NpcProtocol.Snapshot.ID, (payload, context) -> {
+            var snapshot = payload.value();
+            if (snapshot.version() != dev.agnor.network.NpcWire.VERSION || context.client().player == null) return;
+            context.client().player.sendMessage(net.minecraft.text.Text.literal(dev.agnor.network.NpcFeedback.message(snapshot)), false);
+        });
         // Remote-server clients never fire SERVER_STARTING in their own process.
         try {
             var roots = DataRoots.prepareLayout(FabricLoader.getInstance().getGameDir());

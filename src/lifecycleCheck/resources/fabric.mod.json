@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"agnor_lifecycle_check","version":"1.0.0","environment":"*","entrypoints":{"main":["dev.agnor.check.LifecycleCheck"],"client":["dev.agnor.check.LifecycleClient"]},"depends":{"agnor":"*"}}
