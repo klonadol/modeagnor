@@ -1,0 +1,50 @@
+name: Import Firefly VRM (one-time)
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'assets/models/firefly/_parts/**'
+
+permissions:
+  contents: write
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Reconstruct and verify original VRM
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import io
+          import zipfile
+          from pathlib import Path
+
+          root = Path('assets/models/firefly')
+          chunks = sorted((root / '_parts').glob('*.part'))
+          expected_names = [f'{n:03}.part' for n in range(1, 6)]
+          assert [f.name for f in chunks] == expected_names, 'Missing or unexpected model parts'
+          archive = b''.join(f.read_bytes() for f in chunks)
+          assert len(archive) == 4994368, 'Unexpected archive length'
+          assert hashlib.sha256(archive).hexdigest() == '03bb49b847fc9ac2a84dff9b21fad3e0c344d912ee962c3d2a4ccdb7c5a79e41', 'Archive SHA-256 mismatch'
+          with zipfile.ZipFile(io.BytesIO(archive)) as z:
+              assert z.namelist() == ['190034762488033771.vrm'], 'Unexpected ZIP contents'
+              vrm = z.read('190034762488033771.vrm')
+          assert len(vrm) == 55647484, 'Unexpected VRM length'
+          assert hashlib.sha256(vrm).hexdigest() == '37c32b19702bd2d8b83e9837ecd98f1f167df0123b48bffa0679fe56cf5e21a2', 'VRM SHA-256 mismatch'
+          (root / '190034762488033771.vrm').write_bytes(vrm)
+          print('Verified original Firefly VRM:', len(vrm), 'bytes')
+          PY
+      - name: Commit only the assembled model
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/models/firefly/190034762488033771.vrm
+          git rm -r assets/models/firefly/_parts
+          git commit -m "asset: restore exact Firefly VRM from transfer chunks"
+          git push origin HEAD:main
